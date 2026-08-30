@@ -72,3 +72,29 @@ alert("PIN reset successfully.");
 }
 
 $("workers").onclick=adminWorkers; 
+async function backupData(){
+  try{
+    const tables=["app_users","categories","products","stock_transactions","stock_corrections","worker_access","admin_audit"];
+    const backup={backup_date:new Date().toISOString(),tables:{}};
+
+    for(const table of tables){
+      const{data,error}=await db.from(table).select("*");
+      if(error)throw error;
+      backup.tables[table]=data||[];
+    }
+
+    const blob=new Blob([JSON.stringify(backup,null,2)],{type:"application/json"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;
+    a.download="JMP_Ent_Stocks_Backup_"+new Date().toISOString().slice(0,10)+".json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+
+    alert("Backup downloaded successfully.");
+  }catch(e){
+    alert("Backup failed: "+e.message);
+  }
+}
