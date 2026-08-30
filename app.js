@@ -3,23 +3,9 @@ const db = createClient(window.SUPABASE_URL, window.SUPABASE_PUBLISHABLE_KEY);
 const $ = id => document.getElementById(id);
 
 let code = "", pin = "", worker = null, busy = false;
-
 /* ---------- BACK BUTTON ---------- */
-history.replaceState({ app: true }, "", location.href);
-history.pushState({ app: true }, "", location.href);
-
-window.addEventListener("popstate", () => {
-  const modals = document.querySelectorAll(".modal");
-
-  if (modals.length) {
-    modals[modals.length - 1].remove();
-    busy = false;
-    history.pushState({ app: true }, "", location.href);
-    return;
-  }
-
-  history.pushState({ app: true }, "", location.href);
-});
+history.pushState({jmp:1},"",location.href);
+window.addEventListener("popstate",()=>{const m=document.querySelectorAll(".modal");if(m.length){m[m.length-1].remove();busy=false}history.pushState({jmp:1},"",location.href)});
 
 /* ---------- LOGIN ---------- */
 $("signIn").onclick = login;
