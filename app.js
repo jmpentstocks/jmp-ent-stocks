@@ -1,1 +1,743 @@
-const{createClient}=window.supabase,db=createClient(window.SUPABASE_URL,window.SUPABASE_PUBLISHABLE_KEY),$=id=>document.getElementById(id);let code="",pin="",worker=null,busy=false;$("signIn").onclick=login;$("pin").onkeydown=e=>{if(e.key==="Enter")login()};$("accessCode").onkeydown=e=>{if(e.key==="Enter")$("pin").focus()};$("logout").onclick=()=>{localStorage.removeItem("jmp_worker");location.reload()};async function login(){code=$("accessCode").value.trim();pin=$("pin").value.trim();if(!code||!pin)return $("loginMsg").textContent="Enter access code and password.";let b=$("signIn");b.disabled=true;$("loginMsg").textContent="Checking...";try{let{data,error}=await db.rpc("worker_login",{p_access_code:code,p_pin:pin});if(error)throw error;if(!data?.length)return $("loginMsg").textContent="Incorrect access code or password.";worker=data[0];localStorage.setItem("jmp_worker",JSON.stringify(worker));$("welcome").textContent="Signed in as "+worker.worker_name;$("loginScreen").classList.add("hidden");$("homeScreen").classList.remove("hidden");if(String(worker.role).toLowerCase()==="admin")$("adminActions").classList.remove("hidden");await loadInventory();await loadSummary()}catch(e){$("loginMsg").textContent=e.message||"Login error."}finally{b.disabled=false}}async function getProducts(){let{data,error}=await db.rpc("worker_inventory",{p_access_code:code,p_pin:pin});if(error)throw error;return data||[]}async function loadInventory(){try{let data=await getProducts();$("inventoryList").innerHTML=data.map(p=>`<div class="item"><div><b>${p.name}</b><small>Minimum: ${p.threshold}</small></div><strong class="qty">${p.current_stock}<span class="badge ${Number(p.current_stock)<=Number(p.threshold)?"low":""}">${Number(p.current_stock)<=Number(p.threshold)?"LOW":"OK"}</span></strong></div>`).join("")}catch(e){$("inventoryList").innerHTML="<p>"+e.message+"</p>"}}async function loadSummary(){let{data,error}=await db.rpc("worker_stock_summary",{p_access_code:code,p_pin:pin});if(error)return;let e=$("summaryList");if(!e){e=document.createElement("div");e.id="summaryList";e.className="panel";$("homeScreen").appendChild(e)}e.innerHTML="<h2>My Stock Summary</h2>"+(data||[]).map(p=>`<div class="item"><div><b>${p.product_name}</b><small>IN: ${p.stock_in} &nbsp; OUT: ${p.stock_out}</small></div><strong class="qty">${p.net_stock}</strong></div>`).join("")}async function move(type){if(busy||!worker)return;busy=true;try{let data=await getProducts(),m=document.createElement("div");m.className="modal";m.innerHTML=`<div class="modalbox"><h2>Stock ${type}</h2><p>Click product:</p><div id="productChoices">${data.map(p=>`<button class="product" data-id="${p.product_id}" data-stock="${p.current_stock}"><span>${p.name}</span><span>${p.current_stock}</span></button>`).join("")}</div><div id="qtyBox" style="display:none"><h3 id="chosen"></h3><input id="qty" type="number" min="1" step="1" inputmode="numeric" placeholder="Enter quantity"><div class="row"><button id="cancelQty" class="cancel">Back</button><button id="saveQty" class="save">Save</button></div><p id="stockMsg"></p></div><button id="closeStock" class="cancel" style="margin-top:10px;width:100%">Cancel</button></div>`;document.body.appendChild(m);$("closeStock").onclick=()=>{m.remove();busy=false};document.querySelectorAll("#productChoices .product").forEach(x=>x.onclick=()=>{$("productChoices").style.display="none";$("closeStock").style.display="none";$("qtyBox").style.display="block";$("chosen").textContent=x.querySelector("span").textContent;$("qty").focus();$("cancelQty").onclick=()=>{m.remove();busy=false;move(type)};$("saveQty").onclick=async()=>{let q=Number($("qty").value),id=Number(x.dataset.id),stock=Number(x.dataset.stock);if(!Number.isInteger(q)||q<1)return $("stockMsg").textContent="Enter a valid quantity.";if(type==="OUT"&&q>stock)return $("stockMsg").textContent="Insufficient stock.";if(!confirm(`Save Stock ${type} of ${q} for ${x.querySelector("span").textContent}?`))return;let s=$("saveQty");s.disabled=true;$("stockMsg").textContent="Saving...";let{error}=await db.rpc(type==="IN"?"stock_in":"stock_out",{p_product_id:id,p_user_id:worker.user_id,p_quantity:q});if(error){s.disabled=false;return $("stockMsg").textContent=error.message}m.remove();busy=false;await loadInventory();await loadSummary();alert(`Stock ${type} saved successfully.`)}})}catch(e){alert(e.message);busy=false}}$("stockIn").onclick=()=>move("IN");$("stockOut").onclick=()=>move("OUT");$("manageProducts").onclick=adminProducts;$("manageCategories").onclick=adminCategories;$("transactions").onclick=adminTransactions;$("workers").onclick=()=>alert("Worker management will be added next.");function adminBox(title,body){let m=document.createElement("div");m.className="modal";m.innerHTML=`<div class="modalbox"><h2>${title}</h2>${body}<button id="adminClose" class="cancel" style="margin-top:15px;width:100%">Close</button></div>`;document.body.appendChild(m);$("adminClose").onclick=()=>m.remove();return m}async function adminCategories(){try{let{data,error}=await db.rpc("admin_categories",{p_code:code,p_pin:pin});if(error)throw error;let m=adminBox("Categories",`<input id="newCat" placeholder="New category name" style="width:100%;padding:14px;box-sizing:border-box;border:1px solid #ccc;border-radius:10px"><button id="addCat" class="save" style="width:100%;margin-top:10px">Add Category</button><div style="margin-top:15px">${(data||[]).map(x=>`<div class="item"><b>${x.name}</b><small>${x.active?"Active":"Inactive"}</small></div>`).join("")}</div>`);$("addCat").onclick=async()=>{let n=$("newCat").value.trim();if(!n)return alert("Enter category name.");let{error}=await db.rpc("admin_add_category",{p_code:code,p_pin:pin,p_name:n});if(error)return alert(error.message);m.remove();adminCategories()}}catch(e){alert(e.message)}}async function adminProducts(){try{let{data,error}=await db.rpc("admin_products",{p_code:code,p_pin:pin});if(error)throw error;let{data:cats}=await db.rpc("admin_categories",{p_code:code,p_pin:pin}),options=(cats||[]).filter(x=>x.active).map(x=>`<option value="${x.id}">${x.name}</option>`).join(""),m=adminBox("Products",`<button id="addProduct" class="save" style="width:100%">+ Add Product</button><div style="margin-top:15px">${(data||[]).map(p=>`<div class="item"><div><b>${p.name}</b><small>${p.category_name||"No category"} · Stock ${p.current_stock} · Min ${p.threshold}</small></div><button class="editProd" data-id="${p.id}">Edit</button></div>`).join("")}</div>`);$("addProduct").onclick=()=>addProduct(options);m.querySelectorAll(".editProd").forEach(b=>b.onclick=()=>editProduct(b.dataset.id,data,options))}catch(e){alert(e.message)}}async function addProduct(options){let m=adminBox("Add Product",`<input id="pn" placeholder="Product name" style="width:100%;padding:13px;box-sizing:border-box"><select id="pc" style="width:100%;padding:13px;margin-top:10px"><option value="">Category</option>${options}</select><input id="po" type="number" min="0" placeholder="Opening stock" style="width:100%;padding:13px;margin-top:10px;box-sizing:border-box"><input id="pt" type="number" min="0" placeholder="Minimum stock" style="width:100%;padding:13px;margin-top:10px;box-sizing:border-box"><button id="saveP" class="save" style="width:100%;margin-top:10px">Save Product</button>`);$("saveP").onclick=async()=>{let n=$("pn").value.trim(),o=Number($("po").value||0),t=Number($("pt").value||0);if(!n)return alert("Enter product name.");let{error}=await db.rpc("admin_add_product",{p_code:code,p_pin:pin,p_name:n,p_category_id:$("pc").value?Number($("pc").value):null,p_opening:o,p_threshold:t});if(error)return alert(error.message);m.remove();adminProducts()}}async function editProduct(id,data,options){let p=data.find(x=>String(x.id)===String(id)),m=adminBox("Edit Product",`<input id="en" value="${p.name}" style="width:100%;padding:13px;box-sizing:border-box"><select id="ec" style="width:100%;padding:13px;margin-top:10px"><option value="">No category</option>${options}</select><input id="et" type="number" min="0" value="${p.threshold}" style="width:100%;padding:13px;margin-top:10px;box-sizing:border-box"><select id="ea" style="width:100%;padding:13px;margin-top:10px"><option value="true">Active</option><option value="false">Inactive</option></select><button id="saveE" class="save" style="width:100%;margin-top:10px">Save Changes</button>`);if(p.category_id)$("ec").value=p.category_id;$("ea").value=String(p.active);$("saveE").onclick=async()=>{let{error}=await db.rpc("admin_edit_product",{p_code:code,p_pin:pin,p_id:Number(id),p_name:$("en").value,p_category_id:$("ec").value?Number($("ec").value):null,p_threshold:Number($("et").value||0),p_active:$("ea").value==="true"});if(error)return alert(error.message);m.remove();adminProducts();loadInventory()}}async function adminTransactions(){try{let{data,error}=await db.rpc("admin_transactions",{p_code:code,p_pin:pin});if(error)throw error;let m=adminBox("Transactions",(data||[]).map(x=>`<div class="item"><div><b>${x.product_name}</b><small>${x.movement} · Qty ${x.quantity}<br>${new Date(x.created_at).toLocaleString()}</small></div><button class="editTx" data-id="${x.id}">Correct</button></div>`).join(""));m.querySelectorAll(".editTx").forEach(b=>b.onclick=()=>correctTransaction(b.dataset.id,data))}catch(e){alert(e.message)}}async function correctTransaction(id,data){let t=data.find(x=>String(x.id)===String(id)),m=adminBox("Correct Transaction",`<p><b>${t.product_name}</b></p><select id="tm" style="width:100%;padding:13px"><option value="IN">Stock IN</option><option value="OUT">Stock OUT</option></select><input id="tq" type="number" min="1" value="${t.quantity}" style="width:100%;padding:13px;margin-top:10px;box-sizing:border-box"><button id="saveT" class="save" style="width:100%;margin-top:10px">Save Correction</button>`);$("tm").value=t.movement;$("saveT").onclick=async()=>{if(!confirm("Correct this transaction?"))return;let{error}=await db.rpc("admin_correct_transaction",{p_code:code,p_pin:pin,p_transaction_id:Number(id),p_new_movement:$("tm").value,p_new_quantity:Number($("tq").value)});if(error)return alert(error.message);m.remove();await loadInventory();alert("Transaction corrected successfully.")}}
+const { createClient } = window.supabase;
+const db = createClient(window.SUPABASE_URL, window.SUPABASE_PUBLISHABLE_KEY);
+const $ = id => document.getElementById(id);
+
+let code = "", pin = "", worker = null, busy = false;
+
+/* ---------- BACK BUTTON ---------- */
+history.replaceState({ app: true }, "", location.href);
+history.pushState({ app: true }, "", location.href);
+
+window.addEventListener("popstate", () => {
+  const modals = document.querySelectorAll(".modal");
+
+  if (modals.length) {
+    modals[modals.length - 1].remove();
+    busy = false;
+    history.pushState({ app: true }, "", location.href);
+    return;
+  }
+
+  history.pushState({ app: true }, "", location.href);
+});
+
+/* ---------- LOGIN ---------- */
+$("signIn").onclick = login;
+
+$("pin").onkeydown = e => {
+  if (e.key === "Enter") login();
+};
+
+$("accessCode").onkeydown = e => {
+  if (e.key === "Enter") $("pin").focus();
+};
+
+$("logout").onclick = () => {
+  localStorage.removeItem("jmp_worker");
+  location.reload();
+};
+
+async function login() {
+  code = $("accessCode").value.trim();
+  pin = $("pin").value.trim();
+
+  if (!code || !pin) {
+    $("loginMsg").textContent = "Enter access code and password.";
+    return;
+  }
+
+  const b = $("signIn");
+  b.disabled = true;
+  $("loginMsg").textContent = "Checking...";
+
+  try {
+    const { data, error } = await db.rpc("worker_login", {
+      p_access_code: code,
+      p_pin: pin
+    });
+
+    if (error) throw error;
+
+    if (!data?.length) {
+      $("loginMsg").textContent = "Incorrect access code or password.";
+      return;
+    }
+
+    worker = data[0];
+
+    localStorage.setItem("jmp_worker", JSON.stringify(worker));
+
+    $("welcome").textContent = "Signed in as " + worker.worker_name;
+    $("loginScreen").classList.add("hidden");
+    $("homeScreen").classList.remove("hidden");
+
+    if (String(worker.role).toLowerCase() === "admin") {
+      $("adminActions").classList.remove("hidden");
+    }
+
+    await loadInventory();
+    await loadSummary();
+
+  } catch (e) {
+    $("loginMsg").textContent = e.message || "Login error.";
+  } finally {
+    b.disabled = false;
+  }
+}
+
+/* ---------- PRODUCTS ---------- */
+async function getProducts() {
+  const { data, error } = await db.rpc("worker_inventory", {
+    p_access_code: code,
+    p_pin: pin
+  });
+
+  if (error) throw error;
+  return data || [];
+}
+
+async function loadInventory() {
+  try {
+    const data = await getProducts();
+
+    $("inventoryList").innerHTML = data.map(p => `
+      <div class="item">
+        <div>
+          <b>${p.name}</b>
+          <small>Minimum: ${p.threshold}</small>
+        </div>
+        <strong class="qty">
+          ${p.current_stock}
+          <span class="badge ${Number(p.current_stock) <= Number(p.threshold) ? "low" : ""}">
+            ${Number(p.current_stock) <= Number(p.threshold) ? "LOW" : "OK"}
+          </span>
+        </strong>
+      </div>
+    `).join("");
+
+  } catch (e) {
+    $("inventoryList").innerHTML = "<p>" + e.message + "</p>";
+  }
+}
+
+/* ---------- SUMMARY ---------- */
+async function loadSummary() {
+  const { data, error } = await db.rpc("worker_stock_summary", {
+    p_access_code: code,
+    p_pin: pin
+  });
+
+  if (error) return;
+
+  let e = $("summaryList");
+
+  if (!e) {
+    e = document.createElement("div");
+    e.id = "summaryList";
+    e.className = "panel";
+    $("homeScreen").appendChild(e);
+  }
+
+  e.innerHTML = `
+    <h2>My Stock Summary</h2>
+    ${(data || []).map(p => `
+      <div class="item">
+        <div>
+          <b>${p.product_name}</b>
+          <small>IN: ${p.stock_in} &nbsp; OUT: ${p.stock_out}</small>
+        </div>
+        <strong class="qty">${p.net_stock}</strong>
+      </div>
+    `).join("")}
+  `;
+}
+
+/* ---------- STOCK IN / OUT ---------- */
+async function move(type) {
+  if (busy || !worker) return;
+
+  busy = true;
+
+  try {
+    const data = await getProducts();
+
+    const m = document.createElement("div");
+    m.className = "modal";
+
+    m.innerHTML = `
+      <div class="modalbox">
+        <h2>Stock ${type}</h2>
+        <p>Click product:</p>
+
+        <div id="productChoices">
+          ${data.map(p => `
+            <button class="product"
+              data-id="${p.product_id}"
+              data-stock="${p.current_stock}">
+              <span>${p.name}</span>
+              <span>${p.current_stock}</span>
+            </button>
+          `).join("")}
+        </div>
+
+        <div id="qtyBox" style="display:none">
+          <h3 id="chosen"></h3>
+
+          <input id="qty"
+            type="number"
+            min="1"
+            step="1"
+            inputmode="numeric"
+            placeholder="Enter quantity">
+
+          <div class="row">
+            <button id="cancelQty" class="cancel">Back</button>
+            <button id="saveQty" class="save">Save</button>
+          </div>
+
+          <p id="stockMsg"></p>
+        </div>
+
+        <button id="closeStock"
+          class="cancel"
+          style="margin-top:10px;width:100%">
+          Cancel
+        </button>
+      </div>
+    `;
+
+    document.body.appendChild(m);
+
+    $("closeStock").onclick = () => {
+      m.remove();
+      busy = false;
+    };
+
+    document.querySelectorAll("#productChoices .product").forEach(x => {
+
+      x.onclick = () => {
+
+        $("productChoices").style.display = "none";
+        $("closeStock").style.display = "none";
+        $("qtyBox").style.display = "block";
+
+        $("chosen").textContent =
+          x.querySelector("span").textContent;
+
+        $("qty").focus();
+
+        $("cancelQty").onclick = () => {
+          m.remove();
+          busy = false;
+          move(type);
+        };
+
+        $("saveQty").onclick = async () => {
+
+          const q = Number($("qty").value);
+          const id = Number(x.dataset.id);
+          const stock = Number(x.dataset.stock);
+
+          if (!Number.isInteger(q) || q < 1) {
+            $("stockMsg").textContent =
+              "Enter a valid quantity.";
+            return;
+          }
+
+          if (type === "OUT" && q > stock) {
+            $("stockMsg").textContent =
+              "Insufficient stock.";
+            return;
+          }
+
+          if (!confirm(
+            `Save Stock ${type} of ${q} for ${x.querySelector("span").textContent}?`
+          )) return;
+
+          const s = $("saveQty");
+          s.disabled = true;
+          $("stockMsg").textContent = "Saving...";
+
+          const { error } = await db.rpc(
+            type === "IN" ? "stock_in" : "stock_out",
+            {
+              p_product_id: id,
+              p_user_id: worker.user_id,
+              p_quantity: q
+            }
+          );
+
+          if (error) {
+            s.disabled = false;
+            $("stockMsg").textContent = error.message;
+            return;
+          }
+
+          m.remove();
+          busy = false;
+
+          await loadInventory();
+          await loadSummary();
+
+          alert(`Stock ${type} saved successfully.`);
+        };
+      };
+    });
+
+  } catch (e) {
+    alert(e.message);
+    busy = false;
+  }
+}
+
+$("stockIn").onclick = () => move("IN");
+$("stockOut").onclick = () => move("OUT");
+
+/* ---------- ADMIN BUTTONS ---------- */
+$("manageProducts").onclick = adminProducts;
+$("manageCategories").onclick = adminCategories;
+$("transactions").onclick = adminTransactions;
+
+$("workers").onclick = () =>
+  alert("Worker management will be added next.");
+
+/* ---------- ADMIN MODAL ---------- */
+function adminBox(title, body) {
+
+  const m = document.createElement("div");
+  m.className = "modal";
+
+  m.innerHTML = `
+    <div class="modalbox">
+      <h2>${title}</h2>
+      ${body}
+      <button id="adminClose"
+        class="cancel"
+        style="margin-top:15px;width:100%">
+        Close
+      </button>
+    </div>
+  `;
+
+  document.body.appendChild(m);
+
+  $("adminClose").onclick = () => m.remove();
+
+  return m;
+}
+
+/* ---------- CATEGORIES ---------- */
+async function adminCategories() {
+
+  try {
+
+    const { data, error } = await db.rpc(
+      "admin_categories",
+      {
+        p_code: code,
+        p_pin: pin
+      }
+    );
+
+    if (error) throw error;
+
+    const m = adminBox(
+      "Categories",
+      `
+      <input id="newCat"
+        placeholder="New category name"
+        style="width:100%;padding:14px;box-sizing:border-box;border:1px solid #ccc;border-radius:10px">
+
+      <button id="addCat"
+        class="save"
+        style="width:100%;margin-top:10px">
+        Add Category
+      </button>
+
+      <div style="margin-top:15px">
+        ${(data || []).map(x => `
+          <div class="item">
+            <b>${x.name}</b>
+            <small>${x.active ? "Active" : "Inactive"}</small>
+          </div>
+        `).join("")}
+      </div>
+      `
+    );
+
+    $("addCat").onclick = async () => {
+
+      const n = $("newCat").value.trim();
+
+      if (!n) {
+        alert("Enter category name.");
+        return;
+      }
+
+      const { error } = await db.rpc(
+        "admin_add_category",
+        {
+          p_code: code,
+          p_pin: pin,
+          p_name: n
+        }
+      );
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      m.remove();
+      adminCategories();
+    };
+
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+/* ---------- PRODUCTS ADMIN ---------- */
+async function adminProducts() {
+
+  try {
+
+    const { data, error } = await db.rpc(
+      "admin_products",
+      {
+        p_code: code,
+        p_pin: pin
+      }
+    );
+
+    if (error) throw error;
+
+    const cats = await db.rpc(
+      "admin_categories",
+      {
+        p_code: code,
+        p_pin: pin
+      }
+    );
+
+    if (cats.error) throw cats.error;
+
+    const options = (cats.data || [])
+      .filter(x => x.active)
+      .map(x =>
+        `<option value="${x.id}">${x.name}</option>`
+      )
+      .join("");
+
+    const m = adminBox(
+      "Products",
+      `
+      <button id="addProduct"
+        class="save"
+        style="width:100%">
+        + Add Product
+      </button>
+
+      <div style="margin-top:15px">
+        ${(data || []).map(p => `
+          <div class="item">
+            <div>
+              <b>${p.name}</b>
+              <small>
+                ${p.category_name || "No category"}
+                · Stock ${p.current_stock}
+                · Min ${p.threshold}
+              </small>
+            </div>
+
+            <button class="editProd"
+              data-id="${p.id}">
+              Edit
+            </button>
+          </div>
+        `).join("")}
+      </div>
+      `
+    );
+
+    $("addProduct").onclick =
+      () => addProduct(options);
+
+    m.querySelectorAll(".editProd").forEach(b => {
+      b.onclick = () =>
+        editProduct(b.dataset.id, data, options);
+    });
+
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+/* ---------- ADD PRODUCT ---------- */
+async function addProduct(options) {
+
+  const m = adminBox(
+    "Add Product",
+    `
+    <input id="pn"
+      placeholder="Product name"
+      style="width:100%;padding:13px;box-sizing:border-box">
+
+    <select id="pc"
+      style="width:100%;padding:13px;margin-top:10px">
+      <option value="">Category</option>
+      ${options}
+    </select>
+
+    <input id="po"
+      type="number"
+      min="0"
+      placeholder="Opening stock"
+      style="width:100%;padding:13px;margin-top:10px;box-sizing:border-box">
+
+    <input id="pt"
+      type="number"
+      min="0"
+      placeholder="Minimum stock"
+      style="width:100%;padding:13px;margin-top:10px;box-sizing:border-box">
+
+    <button id="saveP"
+      class="save"
+      style="width:100%;margin-top:10px">
+      Save Product
+    </button>
+    `
+  );
+
+  $("saveP").onclick = async () => {
+
+    const n = $("pn").value.trim();
+    const o = Number($("po").value || 0);
+    const t = Number($("pt").value || 0);
+
+    if (!n) {
+      alert("Enter product name.");
+      return;
+    }
+
+    const { error } = await db.rpc(
+      "admin_add_product",
+      {
+        p_code: code,
+        p_pin: pin,
+        p_name: n,
+        p_category_id:
+          $("pc").value
+            ? Number($("pc").value)
+            : null,
+        p_opening: o,
+        p_threshold: t
+      }
+    );
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    m.remove();
+    adminProducts();
+  };
+}
+
+/* ---------- EDIT PRODUCT ---------- */
+async function editProduct(id, data, options) {
+
+  const p = data.find(
+    x => String(x.id) === String(id)
+  );
+
+  if (!p) {
+    alert("Product not found.");
+    return;
+  }
+
+  const m = adminBox(
+    "Edit Product",
+    `
+    <input id="en"
+      value="${p.name}"
+      style="width:100%;padding:13px;box-sizing:border-box">
+
+    <select id="ec"
+      style="width:100%;padding:13px;margin-top:10px">
+      <option value="">No category</option>
+      ${options}
+    </select>
+
+    <input id="et"
+      type="number"
+      min="0"
+      value="${p.threshold}"
+      style="width:100%;padding:13px;margin-top:10px;box-sizing:border-box">
+
+    <select id="ea"
+      style="width:100%;padding:13px;margin-top:10px">
+      <option value="true">Active</option>
+      <option value="false">Inactive</option>
+    </select>
+
+    <button id="saveE"
+      class="save"
+      style="width:100%;margin-top:10px">
+      Save Changes
+    </button>
+    `
+  );
+
+  if (p.category_id) {
+    $("ec").value = p.category_id;
+  }
+
+  $("ea").value = String(p.active);
+
+  $("saveE").onclick = async () => {
+
+    const { error } = await db.rpc(
+      "admin_edit_product",
+      {
+        p_code: code,
+        p_pin: pin,
+        p_id: Number(id),
+        p_name: $("en").value.trim(),
+        p_category_id:
+          $("ec").value
+            ? Number($("ec").value)
+            : null,
+        p_threshold:
+          Number($("et").value || 0),
+        p_active:
+          $("ea").value === "true"
+      }
+    );
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    m.remove();
+
+    await adminProducts();
+    await loadInventory();
+  };
+}
+
+/* ---------- TRANSACTIONS ---------- */
+async function adminTransactions() {
+
+  try {
+
+    const { data, error } = await db.rpc(
+      "admin_transactions",
+      {
+        p_code: code,
+        p_pin: pin
+      }
+    );
+
+    if (error) throw error;
+
+    const m = adminBox(
+      "Transactions",
+      (data || []).map(x => `
+        <div class="item">
+          <div>
+            <b>${x.product_name}</b>
+            <small>
+              ${x.movement} · Qty ${x.quantity}
+              <br>
+              ${new Date(x.created_at).toLocaleString()}
+            </small>
+          </div>
+
+          <button class="editTx"
+            data-id="${x.id}">
+            Correct
+          </button>
+        </div>
+      `).join("")
+    );
+
+    m.querySelectorAll(".editTx").forEach(b => {
+      b.onclick = () =>
+        correctTransaction(b.dataset.id, data);
+    });
+
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+/* ---------- CORRECT TRANSACTION ---------- */
+async function correctTransaction(id, data) {
+
+  const t = data.find(
+    x => String(x.id) === String(id)
+  );
+
+  if (!t) {
+    alert("Transaction not found.");
+    return;
+  }
+
+  const m = adminBox(
+    "Correct Transaction",
+    `
+    <p><b>${t.product_name}</b></p>
+
+    <select id="tm"
+      style="width:100%;padding:13px">
+      <option value="IN">Stock IN</option>
+      <option value="OUT">Stock OUT</option>
+    </select>
+
+    <input id="tq"
+      type="number"
+      min="1"
+      value="${t.quantity}"
+      style="width:100%;padding:13px;margin-top:10px;box-sizing:border-box">
+
+    <button id="saveT"
+      class="save"
+      style="width:100%;margin-top:10px">
+      Save Correction
+    </button>
+    `
+  );
+
+  $("tm").value = t.movement;
+
+  $("saveT").onclick = async () => {
+
+    if (!confirm("Correct this transaction?"))
+      return;
+
+    const { error } = await db.rpc(
+      "admin_correct_transaction",
+      {
+        p_code: code,
+        p_pin: pin,
+        p_transaction_id: Number(id),
+        p_new_movement: $("tm").value,
+        p_new_quantity: Number($("tq").value)
+      }
+    );
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    m.remove();
+
+    await loadInventory();
+
+    alert("Transaction corrected successfully.");
+  };
+      }
