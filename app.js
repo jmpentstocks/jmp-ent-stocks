@@ -98,3 +98,12 @@ async function backupData(){
     alert("Backup failed: "+e.message);
   }
 }
+const backupBtn=document.createElement("button");
+backupBtn.id="backupData";
+backupBtn.className="action";
+backupBtn.type="button";
+backupBtn.textContent="💾 Backup Data";
+backupBtn.style.width="100%";
+backupBtn.style.marginTop="15px";
+$("homeScreen").appendChild(backupBtn);
+$("backupData").onclick=backupData;
