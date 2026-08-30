@@ -727,3 +727,52 @@ async function correctTransaction(id, data) {
     alert("Transaction corrected successfully.");
   };
       }
+/* ---------- FINAL UI FIX ---------- */
+adminBox = function(title, body) {
+  const m = document.createElement("div");
+  m.className = "modal";
+
+  m.innerHTML = `
+    <div class="modalbox">
+      <h2>${title}</h2>
+      ${body}
+      <button class="cancel adminCloseFix"
+        style="margin-top:15px;width:100%">
+        Close
+      </button>
+    </div>
+  `;
+
+  document.body.appendChild(m);
+
+  const close = m.querySelector(".adminCloseFix");
+
+  if (close) {
+    close.onclick = () => {
+      m.remove();
+      busy = false;
+    };
+  }
+
+  return m;
+};
+
+/* Close any modal safely */
+document.addEventListener("click", e => {
+  if (e.target.matches(".adminCloseFix")) {
+    const m = e.target.closest(".modal");
+    if (m) m.remove();
+    busy = false;
+  }
+});
+
+/* Android Back: close the top modal */
+window.addEventListener("popstate", () => {
+  const modals = document.querySelectorAll(".modal");
+
+  if (modals.length) {
+    modals[modals.length - 1].remove();
+    busy = false;
+    history.pushState({ jmpApp:true }, "", location.href);
+  }
+});
