@@ -107,3 +107,27 @@ backupBtn.style.width="100%";
 backupBtn.style.marginTop="15px";
 $("homeScreen").appendChild(backupBtn);
 $("backupData").onclick=backupData;
+async function backupData(){
+  try{
+    const{data,error}=await db.rpc("admin_backup",{p_code:code,p_pin:pin});
+    if(error)throw error;
+
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+
+    a.href=url;
+    a.download="JMP_Ent_Stocks_Backup_"+new Date().toISOString().slice(0,10)+".json";
+
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+
+    alert("Backup downloaded successfully.");
+  }catch(e){
+    alert("Backup failed: "+e.message);
+  }
+}
+
+$("backupData").onclick=backupData;
