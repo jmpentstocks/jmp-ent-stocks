@@ -871,7 +871,12 @@ async function addProduct(options){
       min="0"
       placeholder="Opening stock"
       style="width:100%;padding:13px;margin-top:10px;box-sizing:border-box">
-
+      
+<input
+    id="pu"
+    placeholder="Unit (e.g. pcs, pkts, boxes)"
+    style="width:100%;padding:13px;margin-top:10px;box-sizing:border-box">
+    
     <input
       id="pt"
       type="number"
@@ -894,9 +899,11 @@ async function addProduct(options){
     let n=m.querySelector("#pn").value.trim();
     let o=Number(m.querySelector("#po").value||0);
     let t=Number(m.querySelector("#pt").value||0);
+    let u=m.querySelector("#pu").value.trim();
     let cat=m.querySelector("#pc").value;
 
     if(!n)return alert("Enter product name.");
+    if(!u)return alert("Enter product unit.");
 
     if(o<0||t<0)
       return alert("Values cannot be negative.");
@@ -912,7 +919,8 @@ async function addProduct(options){
       p_name:n,
       p_category_id:cat?Number(cat):null,
       p_opening:o,
-      p_threshold:t
+      p_threshold:t,
+      p_unit:u
     });
 
     if(error){
@@ -962,6 +970,12 @@ async function editProduct(id,data,options){
     </select>
 
     <input
+    id="eu"
+    value="${p.unit||''}"
+    placeholder="Unit (e.g. pcs, pkts, boxes)"
+    style="width:100%;padding:13px;margin-top:10px;box-sizing:border-box">
+    
+    <input
       id="et"
       type="number"
       min="0"
@@ -997,8 +1011,9 @@ async function editProduct(id,data,options){
 
     let n=m.querySelector("#en").value.trim();
     let t=Number(m.querySelector("#et").value||0);
-
+    let u=m.querySelector("#eu").value.trim();
     if(!n)return alert("Product name required.");
+    if(!u)return alert("Product unit required.");
 
     let s=m.querySelector("#saveE");
 
@@ -1013,6 +1028,7 @@ async function editProduct(id,data,options){
         ?Number(m.querySelector("#ec").value)
         :null,
       p_threshold:t,
+      p_unit:m.querySelector("#eu").value.trim(),
       p_active:m.querySelector("#ea").value==="true"
     });
 
