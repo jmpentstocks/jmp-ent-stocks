@@ -833,7 +833,7 @@ $("manageProducts").onclick=adminProducts;
 $("manageCategories").onclick=adminCategories;
 $("transactions").onclick=adminTransactions;
 $("workers").onclick=adminWorkers;
-
+$("pasteStockUpdate").onclick=pasteStockUpdate;
 
 /* =========================
    ADMIN MODAL
@@ -864,8 +864,8 @@ function adminBox(title,body){
   document.body.appendChild(m);
 
   m.querySelector(".adminClose").onclick=()=>{
-    m.remove();
-    busy=false;
+  document.querySelectorAll(".modal").forEach(x=>x.remove());
+  busy=false;
   };
 
   return m;
