@@ -558,8 +558,274 @@ async function move(type){
 $("stockIn").onclick=()=>move("IN");
 $("stockOut").onclick=()=>move("OUT");
 
+/* ---------- PASTE STOCK UPDATE ---------- */
+async function pasteStockUpdate() {
 
-/* =========================
+  if (!worker || String(worker.role).toLowerCase() !== "admin") {
+    return;
+  }
+
+  let workers = [];
+  let products = [];
+
+  try {
+
+    const w = await db.rpc("admin_workers", {
+      p_code: code,
+      p_pin: pin
+    });
+
+    if (w.error) throw w.error;
+    workers = w.data || [];
+
+    const p = await db.rpc("admin_products", {
+      p_code: code,
+      p_pin: pin
+    });
+
+    if (p.error) throw p.error;
+    products = p.data || [];
+
+  } catch (e) {
+    alert(e.message);
+    return;
+  }
+
+  const m = adminBox(
+    "📋 Paste Stock Update",
+    `
+    <p>Paste the complete stock message below.</p>
+
+    <textarea
+      id="stockPasteText"
+      rows="10"
+      placeholder="Paste worker stock message here..."
+      style="width:100%;padding:12px;box-sizing:border-box;border:1px solid #ccc;border-radius:10px;font-size:15px"></textarea>
+
+    <button
+      id="previewStockPaste"
+      class="save"
+      style="width:100%;margin-top:10px">
+      Preview
+    </button>
+
+    <div id="stockPastePreview"></div>
+    `
+  );
+
+  m.querySelector("#previewStockPaste").onclick = async () => {
+
+    const message = m.querySelector("#stockPasteText").value.trim();
+
+    if (!message) {
+      alert("Paste the stock message first.");
+      return;
+    }
+
+    const previewButton = m.querySelector("#previewStockPaste");
+    previewButton.disabled = true;
+    previewButton.textContent = "Reading...";
+
+    try {
+
+      const { data, error } = await db.rpc(
+        "preview_whatsapp_stock",
+        {
+          p_message: message
+        }
+      );
+
+      if (error) throw error;
+
+      const items = Array.isArray(data) ? data : [];
+
+      if (!items.length) {
+        alert("No stock items could be read from this message.");
+        previewButton.disabled = false;
+        previewButton.textContent = "Preview";
+        return;
+      }
+
+      m.querySelector("#stockPastePreview").innerHTML = `
+        <h3>Preview</h3>
+
+        <label class="label">WORKER</label>
+
+        <select
+          id="stockWorker"
+          style="width:100%;padding:13px;box-sizing:border-box;border:1px solid #ccc;border-radius:10px">
+
+          <option value="">Select worker</option>
+
+          ${workers
+            .filter(w => String(w.role).toLowerCase() === "worker" && w.active !== false)
+            .map(w => `
+              <option value="${w.user_id}">
+                ${w.worker_name}
+              </option>
+            `).join("")}
+
+        </select>
+
+        <div style="margin-top:15px">
+
+          ${items.map((x, i) => {
+
+            const needs = String(x.match_status || "").toLowerCase() !== "matched";
+
+            return `
+              <div class="item" style="display:block">
+
+                <b>
+                  ${x.product_name || x.message_product || "Unmatched product"}
+                </b>
+
+                <small>
+                  Quantity: ${x.quantity}
+                  ${x.message_unit ? " " + x.message_unit : ""}
+                </small>
+
+                <small>
+                  ${needs
+                    ? "⚠️ Needs confirmation"
+                    : "✓ Matched"}
+                </small>
+
+                ${needs ? `
+                  <select
+                    class="stockProductChoice"
+                    data-index="${i}"
+                    style="width:100%;padding:11px;margin-top:8px;box-sizing:border-box;border:1px solid #ccc;border-radius:10px">
+
+                    <option value="">Select correct product</option>
+
+                    ${products
+                      .filter(p => p.active !== false)
+                      .map(p => `
+                        <option value="${p.id}">
+                          ${p.name}
+                        </option>
+                      `).join("")}
+
+                  </select>
+                ` : ""}
+
+              </div>
+            `;
+
+          }).join("")}
+
+        </div>
+
+        <button
+          id="confirmStockPaste"
+          class="save"
+          style="width:100%;margin-top:12px">
+          Confirm & Update Stock
+        </button>
+
+        <p id="stockPasteMsg"></p>
+      `;
+
+      m.querySelector("#confirmStockPaste").onclick = async () => {
+
+        const workerId = Number(
+          m.querySelector("#stockWorker").value
+        );
+
+        if (!workerId) {
+          alert("Select the worker.");
+          return;
+        }
+
+        const finalItems = [];
+
+        for (let i = 0; i < items.length; i++) {
+
+          const x = items[i];
+
+          let productId = Number(x.product_id);
+
+          if (
+            String(x.match_status || "").toLowerCase() !== "matched"
+          ) {
+            const choice = m.querySelector(
+              `.stockProductChoice[data-index="${i}"]`
+            );
+
+            if (!choice || !choice.value) {
+              alert("Please confirm every uncertain product.");
+              return;
+            }
+
+            productId = Number(choice.value);
+          }
+
+          if (!productId || !Number.isInteger(Number(x.quantity))) {
+            alert("Invalid product or quantity.");
+            return;
+          }
+
+          finalItems.push({
+            product_id: productId,
+            quantity: Number(x.quantity),
+            unit: x.product_unit || x.message_unit || ""
+          });
+        }
+
+        const button = m.querySelector("#confirmStockPaste");
+        const msg = m.querySelector("#stockPasteMsg");
+
+        button.disabled = true;
+        button.textContent = "Updating...";
+        msg.textContent = "Updating physical stock...";
+
+        try {
+
+          const { error } = await db.rpc(
+            "confirm_whatsapp_stock_update",
+            {
+              p_code: code,
+              p_pin: pin,
+              p_worker_id: workerId,
+              p_raw_message: message,
+              p_items: finalItems
+            }
+          );
+
+          if (error) throw error;
+
+          m.remove();
+
+          await loadInventory();
+          await loadSummary();
+
+          alert("Stock update saved successfully.");
+
+        } catch (e) {
+
+          button.disabled = false;
+          button.textContent = "Confirm & Update Stock";
+          msg.textContent = e.message;
+
+        }
+
+      };
+
+    } catch (e) {
+
+      alert(e.message);
+
+      previewButton.disabled = false;
+      previewButton.textContent = "Preview";
+
+    }
+
+  };
+
+}
+/* 
+=========================
    ADMIN BUTTONS
 ========================= */
 
