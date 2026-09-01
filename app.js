@@ -209,7 +209,7 @@ async function loadInventory(){
         </div>
 
         <strong class="qty">
-          ${p.current_stock}
+          ${p.current_stock} ${p.unit||""}
           <span class="badge ${Number(p.current_stock)<=Number(p.threshold)?"low":""}">
             ${Number(p.current_stock)<=Number(p.threshold)?"LOW":"OK"}
           </span>
