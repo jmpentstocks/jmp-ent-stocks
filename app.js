@@ -2325,514 +2325,54 @@ document.addEventListener(
   setupAdminInventory
 );
 
-/* =========================
-   ADMIN INVENTORY DATA
-========================= */
-
-let adminInventoryData = [];
-let adminCategories = [];
-let adminInventoryView = "consolidated";
-let adminSelectedCategory = "all";
-
 
 /* =========================
-   LOAD ADMIN INVENTORY
+   SETUP STOCK TABS
 ========================= */
 
-async function loadAdminInventory(){
+function setupAdminInventory(){
 
-  try{
-
-    const {data,error} = await db
-      .from("products")
-      .select(`
-        id,
-        name,
-        unit,
-        threshold,
-        active,
-        category_id,
-        categories (
-          id,
-          name
-        )
-      `)
-      .eq("active",true);
-
-
-    if(error)throw error;
-
-
-    adminInventoryData = data || [];
-
-
-    const {data:categoryData,error:categoryError} = await db
-      .from("categories")
-      .select(`
-        id,
-        name,
-        active
-      `)
-      .eq("active",true);
-
-
-    if(categoryError)throw categoryError;
-
-
-    adminCategories = categoryData || [];
-
-
-    renderAdminCategoryTabs();
-
-
-    await loadAdminStock();
-
-
-  }catch(e){
-
-    console.error(e);
-
-    const list = $("adminInventoryList");
-
-    if(list){
-
-      list.innerHTML =
-        "Unable to load inventory.";
-
-    }
-
-  }
-
-}
-
-
-/* =========================
-   LOAD LOCATION STOCK
-========================= */
-
-async function loadAdminStock(){
-
-  try{
-
-    const {data,error} = await db
-      .from("product_location_stock")
-      .select(`
-        product_id,
-        location_id,
-        quantity
-      `);
-
-
-    if(error)throw error;
-
-
-    adminInventoryData =
-      adminInventoryData.map(product=>{
-
-
-        let kumarStock = 0;
-        let officeStock = 0;
-
-
-        (data || []).forEach(stock=>{
-
-
-          if(
-            Number(stock.product_id) ===
-            Number(product.id)
-          ){
-
-
-            if(Number(stock.location_id) === 1){
-
-              kumarStock =
-                Number(stock.quantity) || 0;
-
-            }
-
-
-            if(Number(stock.location_id) === 2){
-
-              officeStock =
-                Number(stock.quantity) || 0;
-
-            }
-
-
-          }
-
-
-        });
-
-
-        return {
-
-          ...product,
-
-          kumar_stock:kumarStock,
-
-          office_stock:officeStock,
-
-          consolidated_stock:
-            kumarStock + officeStock
-
-        };
-
-
-      });
-
-
-    renderAdminInventory();
-
-
-  }catch(e){
-
-    console.error(e);
-
-  }
-
-}
-
-
-/* =========================
-   RENDER CATEGORY TABS
-========================= */
-
-function renderAdminCategoryTabs(){
-
-
-  const box =
-    $("adminCategoryTabs");
-
-
-  if(!box)return;
-
-
-  box.innerHTML = `
-
-    <button
-      class="category-tab ${
-        adminSelectedCategory === "all"
-          ? "active"
-          : ""
-      }"
-      data-category="all">
-
-      All
-
-    </button>
-
-
-    ${adminCategories.map(category=>`
-
-      <button
-        class="category-tab ${
-          Number(adminSelectedCategory) ===
-          Number(category.id)
-            ? "active"
-            : ""
-        }"
-        data-category="${category.id}">
-
-        ${category.name}
-
-      </button>
-
-    `).join("")}
-
-  `;
-
-
-  box
-    .querySelectorAll(".category-tab")
+  document.querySelectorAll(".stock-tab")
     .forEach(tab=>{
-
 
       tab.onclick = ()=>{
 
-
-        document
-          .querySelectorAll(".category-tab")
+        document.querySelectorAll(".stock-tab")
           .forEach(t=>{
-
             t.classList.remove("active");
-
           });
-
 
         tab.classList.add("active");
 
-
-        adminSelectedCategory =
-          tab.dataset.category;
-
+        adminInventoryView =
+          tab.dataset.stockView;
 
         renderAdminInventory();
 
-
       };
-
 
     });
 
+  const search = $("adminProductSearch");
+
+  if(search){
+
+    search.oninput = ()=>{
+
+      renderAdminInventory();
+
+    };
+
+  }
 
 }
 
 
 /* =========================
-   RENDER ADMIN INVENTORY
-========================= */
-
-function renderAdminInventory(){
-
-
-  const list =
-    $("adminInventoryList");
-
-
-  if(!list)return;
-
-
-  const search =
-    $("adminProductSearch");
-
-
-  let keyword =
-    search
-      ? search.value.trim().toLowerCase()
-      : "";
-
-
-  let products =
-    [...adminInventoryData];
-
-
-  /* CATEGORY FILTER */
-
-  if(adminSelectedCategory !== "all"){
-
-    products =
-      products.filter(product=>{
-
-        return (
-          Number(product.category_id) ===
-          Number(adminSelectedCategory)
-        );
-
-      });
-
-  }
-
-
-  /* SEARCH FILTER */
-
-  if(keyword){
-
-    products =
-      products.filter(product=>{
-
-        const name =
-          product.name
-            .toLowerCase();
-
-
-        const category =
-          product.categories?.name
-            ?.toLowerCase()
-          || "";
-
-
-        return (
-
-          name.includes(keyword)
-
-          ||
-
-          category.includes(keyword)
-
-        );
-
-
-      });
-
-  }
-
-
-  if(!products.length){
-
-    list.innerHTML = `
-
-      <div class="empty-state">
-
-        No products found.
-
-      </div>
-
-    `;
-
-    return;
-
-  }
-
-
-  list.innerHTML =
-    products.map(product=>{
-
-
-      let quantity = 0;
-
-
-      if(adminInventoryView === "kumar"){
-
-        quantity =
-          product.kumar_stock;
-
-      }
-
-
-      else if(adminInventoryView === "office"){
-
-        quantity =
-          product.office_stock;
-
-      }
-
-
-      else{
-
-        quantity =
-          product.consolidated_stock;
-
-      }
-
-
-      const lowStock =
-
-        Number(product.threshold) > 0
-
-        &&
-
-        Number(quantity) <=
-        Number(product.threshold);
-
-
-      return `
-
-        <div class="admin-product-card">
-
-          <div
-            class="admin-product-name">
-
-            ${product.name}
-
-          </div>
-
-
-          <div
-            class="admin-product-stock">
-
-            <span>
-
-              ${product.categories?.name || ""}
-
-            </span>
-
-
-            <div>
-
-              <span
-                class="admin-product-qty">
-
-                ${quantity}
-
-              </span>
-
-              ${product.unit || ""}
-
-            </div>
-
-          </div>
-
-
-          ${
-            lowStock
-
-            ?
-
-            `
-
-            <div
-              style="
-                margin-top:8px;
-                font-size:12px;
-                color:#b33;
-                font-weight:bold;
-              ">
-
-              Low Stock
-
-            </div>
-
-            `
-
-            :
-
-            ""
-
-          }
-
-        </div>
-
-      `;
-
-
-    }).join("");
-
-
-}
-
-
-/* =========================
-   ADMIN DASHBOARD OPEN
-========================= */
-
-async function openAdminInventory(){
-
-
-  const panel =
-    $("adminInventoryPanel");
-
-
-  if(!panel)return;
-
-
-  panel.classList.remove("hidden");
-
-
-  await loadAdminInventory();
-
-
-}
-
-
-/* =========================
-   ADMIN INVENTORY STARTUP
+   INITIALIZE INVENTORY
 ========================= */
 
 document.addEventListener(
   "DOMContentLoaded",
-  ()=>{
-
-
-    const inventoryPanel =
-      $("adminInventoryPanel");
-
-
-    if(!inventoryPanel)return;
-
-
-  }
+  setupAdminInventory
 );
-
-
-
