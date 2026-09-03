@@ -258,6 +258,204 @@
     font-size:15px;
   }
 }
+/* =========================
+   ADMIN INVENTORY DASHBOARD
+========================= */
+
+.inventory-label{
+  font-size:12px;
+  font-weight:bold;
+  color:#777;
+  margin:20px 0 8px;
+  letter-spacing:.5px;
+}
+
+.stock-tabs{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  border:1px solid #35313d;
+  border-radius:12px;
+  overflow:hidden;
+}
+
+.stock-tab{
+  background:#fff;
+  border:0;
+  border-right:1px solid #ddd;
+  padding:12px 6px;
+  font-size:14px;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+.stock-tab:last-child{
+  border-right:0;
+}
+
+.stock-tab.active{
+  background:#35313d;
+  color:#fff;
+}
+
+.category-tabs{
+  display:flex;
+  gap:8px;
+  overflow-x:auto;
+  padding-bottom:5px;
+  scrollbar-width:none;
+}
+
+.category-tabs::-webkit-scrollbar{
+  display:none;
+}
+
+.category-tab{
+  flex:none;
+  padding:9px 15px;
+  border-radius:20px;
+  border:1px solid #ccc;
+  background:#fff;
+  font-size:14px;
+  font-weight:bold;
+  cursor:pointer;
+  white-space:nowrap;
+}
+
+.category-tab.active{
+  background:#35313d;
+  color:#fff;
+  border-color:#35313d;
+}
+
+.inventory-search{
+  width:100%;
+  box-sizing:border-box;
+  padding:13px 14px;
+  border:1px solid #ccc;
+  border-radius:12px;
+  font-size:15px;
+  margin-top:15px;
+}
+
+.admin-product-card{
+  padding:15px;
+  border:1px solid #ddd;
+  border-radius:14px;
+  background:#fff;
+  margin-bottom:9px;
+}
+
+.admin-product-name{
+  font-size:16px;
+  font-weight:bold;
+}
+
+.admin-product-stock{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-top:10px;
+  color:#777;
+  font-size:13px;
+}
+
+.admin-product-qty{
+  font-size:19px;
+  font-weight:bold;
+  color:#222;
+}
+
+  
+/* =========================
+   ADMIN DASHBOARD
+========================= */
+
+.admin-dashboard-header{
+  margin-bottom:20px;
+}
+
+.admin-dashboard-header h2{
+  margin:0;
+}
+
+.admin-subtitle{
+  margin:6px 0 0;
+  color:#777;
+  font-size:14px;
+}
+
+.admin-quick-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin-bottom:24px;
+}
+
+.admin-quick-btn{
+  background:#fff;
+  border:1px solid #ddd;
+  border-radius:14px;
+  padding:16px 12px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  text-align:left;
+  min-height:78px;
+  cursor:pointer;
+}
+
+.admin-quick-btn:active{
+  transform:scale(.98);
+}
+
+.admin-quick-icon{
+  font-size:25px;
+  width:34px;
+  text-align:center;
+}
+
+.admin-quick-btn b{
+  display:block;
+  font-size:15px;
+  color:#222;
+  margin-bottom:4px;
+}
+
+.admin-quick-btn small{
+  display:block;
+  font-size:12px;
+  color:#777;
+}
+
+.admin-stock-tools{
+  border-top:1px solid #e5e5e5;
+  padding-top:18px;
+}
+
+.admin-stock-tools h3{
+  margin:0 0 12px;
+  font-size:17px;
+}
+
+.admin-stock-update-btn{
+  width:100%;
+  border:none;
+  border-radius:14px;
+  padding:16px;
+  background:#35313d;
+  color:white;
+  font-size:16px;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+.admin-stock-update-btn small{
+  display:block;
+  margin-top:5px;
+  font-size:12px;
+  font-weight:normal;
+  opacity:.8;
+}
 </style>
 </head>
 
@@ -355,49 +553,110 @@
   </div>
 
 
-  <div id="adminActions" class="panel hidden">
+  <!-- ADMIN DASHBOARD -->
 
-    <h2>Admin Dashboard</h2>
+<div id="adminActions" class="panel hidden">
 
-    <div class="actions">
+  <div class="admin-dashboard-header">
 
-      <button
-        id="manageProducts"
-        class="action"
-        type="button">
-        📦 Products
-      </button>
-
-      <button
-        id="manageCategories"
-        class="action"
-        type="button">
-        📁 Categories
-      </button>
-
-      <button
-        id="transactions"
-        class="action"
-        type="button">
-        📋 Transactions
-      </button>
-
-      <button
-        id="workers"
-        class="action"
-        type="button">
-        👥 Workers
-      </button>
-      <button
-  id="pasteStockUpdate"
-  class="action"
-  type="button">
-  📋 Paste Stock Update
-</button>
-
+    <div>
+      <h2>Admin Dashboard</h2>
+      <p class="admin-subtitle">
+        Manage inventory, products and stock operations
+      </p>
     </div>
 
   </div>
+
+
+  <!-- QUICK ACTIONS -->
+
+  <div class="admin-quick-actions">
+
+    <button
+      id="manageProducts"
+      class="admin-quick-btn"
+      type="button">
+
+      <span class="admin-quick-icon">📦</span>
+
+      <span>
+        <b>Products</b>
+        <small>Manage products</small>
+      </span>
+
+    </button>
+
+
+    <button
+      id="manageCategories"
+      class="admin-quick-btn"
+      type="button">
+
+      <span class="admin-quick-icon">📁</span>
+
+      <span>
+        <b>Categories</b>
+        <small>Manage categories</small>
+      </span>
+
+    </button>
+
+
+    <button
+      id="transactions"
+      class="admin-quick-btn"
+      type="button">
+
+      <span class="admin-quick-icon">📋</span>
+
+      <span>
+        <b>Transactions</b>
+        <small>View stock history</small>
+      </span>
+
+    </button>
+
+
+    <button
+      id="workers"
+      class="admin-quick-btn"
+      type="button">
+
+      <span class="admin-quick-icon">👥</span>
+
+      <span>
+        <b>Workers</b>
+        <small>Manage workers</small>
+      </span>
+
+    </button>
+
+  </div>
+
+
+  <!-- STOCK UPDATE -->
+
+  <div class="admin-stock-tools">
+
+    <h3>Stock Operations</h3>
+
+    <button
+      id="pasteStockUpdate"
+      class="admin-stock-update-btn"
+      type="button">
+
+      📋 Paste Stock Update
+
+      <small>
+        Update physical stock from worker message
+      </small>
+
+    </button>
+
+  </div>
+
+</div>
 
 
   <!-- NORMAL / WORKER INVENTORY -->
