@@ -1840,3 +1840,11 @@ document.addEventListener("keydown",e=>{
   }
 
 });
+
+/* =========================
+   ADMIN INVENTORY DASHBOARD
+========================= */
+
+let adminInventoryData = [];
+let adminInventoryView = "consolidated";
+let adminInventoryCategory = "all";
