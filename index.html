@@ -400,17 +400,92 @@
   </div>
 
 
-  <div class="panel">
+  <!-- NORMAL / WORKER INVENTORY -->
 
-    <h2>Inventory</h2>
+<div id="workerInventoryPanel" class="panel">
 
-    <div
-      id="inventoryList"
-      class="inventory">
-      Loading...
-    </div>
+  <h2>Inventory</h2>
+
+  <div
+    id="inventoryList"
+    class="inventory">
+    Loading...
+  </div>
+
+</div>
+
+
+<!-- ADMIN INVENTORY DASHBOARD -->
+
+<div id="adminInventoryPanel" class="panel hidden">
+
+  <h2>Inventory</h2>
+
+
+  <!-- STOCK VIEW -->
+
+  <p class="inventory-label">
+    STOCK VIEW
+  </p>
+
+  <div class="stock-tabs">
+
+    <button
+      class="stock-tab"
+      data-stock-view="kumar"
+      type="button">
+      Kumar
+    </button>
+
+    <button
+      class="stock-tab"
+      data-stock-view="office"
+      type="button">
+      Office
+    </button>
+
+    <button
+      class="stock-tab active"
+      data-stock-view="consolidated"
+      type="button">
+      Consolidated
+    </button>
 
   </div>
+
+
+  <!-- CATEGORY FILTER -->
+
+  <p class="inventory-label">
+    CATEGORIES
+  </p>
+
+  <div
+    id="adminCategoryTabs"
+    class="category-tabs">
+    Loading categories...
+  </div>
+
+
+  <!-- PRODUCT SEARCH -->
+
+  <input
+    id="adminProductSearch"
+    class="inventory-search"
+    type="search"
+    placeholder="🔍 Search product...">
+
+
+  <!-- ADMIN PRODUCT LIST -->
+
+  <div
+    id="adminInventoryList"
+    class="inventory"
+    style="margin-top:15px">
+    Loading...
+  </div>
+
+</div>
 
 </section>
 
