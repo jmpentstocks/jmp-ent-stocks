@@ -534,156 +534,214 @@
   </header>
 
 
+<!-- MAIN DASHBOARD ACTIONS -->
+
 <div class="actions">
+
+  <!-- INVENTORY -->
 
   <button
     id="inventory"
-    class="action"
+    class="action inventory-main-btn"
     type="button">
+
     📊 Inventory
+
   </button>
+
+
+  <!-- STOCK OPERATIONS -->
 
   <button
     id="stockIn"
     class="action"
     type="button">
+
     📥 Stock IN
+
   </button>
+
 
   <button
     id="stockOut"
     class="action"
     type="button">
+
     📤 Stock OUT
+
+  </button>
+
+
+</div>
+
+
+<!-- PASTE STOCK UPDATE -->
+
+<div class="dashboard-stock-update">
+
+  <button
+    id="pasteStockUpdate"
+    class="admin-stock-update-btn"
+    type="button">
+
+    📋 Paste Stock Update
+
+    <small>
+      Update physical stock from worker message
+    </small>
+
   </button>
 
 </div>
 
 
-  <!-- ADMIN DASHBOARD -->
+<!-- ADMIN CONTROLS -->
 
 <div id="adminActions" class="panel hidden">
 
   <div class="admin-dashboard-header">
 
     <div>
-      <h2>Admin Dashboard</h2>
+
+      <h2>Admin Controls</h2>
+
       <p class="admin-subtitle">
-        Manage inventory, products and stock operations
+        Manage products, categories, workers and stock history
       </p>
+
     </div>
 
   </div>
 
 
-  <!-- QUICK ACTIONS -->
-
   <div class="admin-quick-actions">
+
+
+    <!-- PRODUCTS -->
 
     <button
       id="manageProducts"
       class="admin-quick-btn"
       type="button">
 
-      <span class="admin-quick-icon">📦</span>
+      <span class="admin-quick-icon">
+        📦
+      </span>
 
       <span>
+
         <b>Products</b>
-        <small>Manage products</small>
+
+        <small>
+          Manage products
+        </small>
+
       </span>
 
     </button>
 
+
+    <!-- CATEGORIES -->
 
     <button
       id="manageCategories"
       class="admin-quick-btn"
       type="button">
 
-      <span class="admin-quick-icon">📁</span>
+      <span class="admin-quick-icon">
+        📁
+      </span>
 
       <span>
+
         <b>Categories</b>
-        <small>Manage categories</small>
+
+        <small>
+          Manage categories
+        </small>
+
       </span>
 
     </button>
 
 
-    <button
-      id="transactions"
-      class="admin-quick-btn"
-      type="button">
-
-      <span class="admin-quick-icon">📋</span>
-
-      <span>
-        <b>Transactions</b>
-        <small>View stock history</small>
-      </span>
-
-    </button>
-
+    <!-- WORKERS -->
 
     <button
       id="workers"
       class="admin-quick-btn"
       type="button">
 
-      <span class="admin-quick-icon">👥</span>
+      <span class="admin-quick-icon">
+        👥
+      </span>
 
       <span>
+
         <b>Workers</b>
-        <small>Manage workers</small>
+
+        <small>
+          Manage workers
+        </small>
+
       </span>
 
     </button>
 
-  </div>
 
-
-  <!-- STOCK UPDATE -->
-
-  <div class="admin-stock-tools">
-
-    <h3>Stock Operations</h3>
+    <!-- TRANSACTIONS -->
 
     <button
-      id="pasteStockUpdate"
-      class="admin-stock-update-btn"
+      id="transactions"
+      class="admin-quick-btn"
       type="button">
 
-      📋 Paste Stock Update
+      <span class="admin-quick-icon">
+        📋
+      </span>
 
-      <small>
-        Update physical stock from worker message
-      </small>
+      <span>
+
+        <b>Transactions</b>
+
+        <small>
+          View stock history
+        </small>
+
+      </span>
 
     </button>
+
 
   </div>
 
 </div>
 
 
-  <!-- NORMAL / WORKER INVENTORY -->
+<!-- NORMAL / WORKER INVENTORY -->
 
-<div id="workerInventoryPanel" class="panel">
+<div
+  id="workerInventoryPanel"
+  class="panel hidden">
 
   <h2>Inventory</h2>
 
   <div
     id="inventoryList"
     class="inventory">
+
     Loading...
+
   </div>
 
 </div>
 
 
-<!-- ADMIN INVENTORY DASHBOARD -->
+<!-- ADMIN INVENTORY -->
 
-<div id="adminInventoryPanel" class="panel hidden">
+<div
+  id="adminInventoryPanel"
+  class="panel hidden">
 
   <h2>Inventory</h2>
 
@@ -694,28 +752,39 @@
     STOCK VIEW
   </p>
 
+
   <div class="stock-tabs">
+
 
     <button
       class="stock-tab"
       data-stock-view="kumar"
       type="button">
+
       Kumar
+
     </button>
+
 
     <button
       class="stock-tab"
       data-stock-view="office"
       type="button">
+
       Office
+
     </button>
+
 
     <button
       class="stock-tab active"
       data-stock-view="consolidated"
       type="button">
+
       Consolidated
+
     </button>
+
 
   </div>
 
@@ -726,10 +795,13 @@
     CATEGORIES
   </p>
 
+
   <div
     id="adminCategoryTabs"
     class="category-tabs">
+
     Loading categories...
+
   </div>
 
 
@@ -742,21 +814,24 @@
     placeholder="🔍 Search product...">
 
 
-  <!-- ADMIN PRODUCT LIST -->
+  <!-- PRODUCT LIST -->
 
   <div
     id="adminInventoryList"
     class="inventory"
     style="margin-top:15px">
+
     Loading...
+
   </div>
 
+
 </div>
+
 
 </section>
 
 </main>
-
 
 <script>
 window.SUPABASE_URL="https://dpigulqijhahslcprjmy.supabase.co";
