@@ -2376,3 +2376,27 @@ document.addEventListener(
   "DOMContentLoaded",
   setupAdminInventory
 );
+
+/* =========================
+   MAIN INVENTORY BUTTON
+========================= */
+
+document.addEventListener(
+  "DOMContentLoaded",
+  ()=>{
+
+    const inventoryBtn =
+      document.getElementById("inventory");
+
+    if(inventoryBtn){
+
+      inventoryBtn.onclick = ()=>{
+
+        openAdminInventory();
+
+      };
+
+    }
+
+  }
+);
