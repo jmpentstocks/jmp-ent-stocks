@@ -1856,13 +1856,24 @@ async function openAdminInventory(){
 
   const panel = $("adminInventoryPanel");
   const dashboard = $("adminActions");
+  const workerPanel = $("workerInventoryPanel");
 
   if(!panel){
     alert("Admin Inventory panel not found.");
     return;
   }
 
-  dashboard.classList.add("hidden");
+  /* Hide normal worker inventory */
+  if(workerPanel){
+    workerPanel.classList.add("hidden");
+  }
+
+  /* Keep Admin Controls visible */
+  if(dashboard){
+    dashboard.classList.remove("hidden");
+  }
+
+  /* Show admin inventory */
   panel.classList.remove("hidden");
 
   adminInventoryView = "consolidated";
@@ -1875,17 +1886,18 @@ async function openAdminInventory(){
   }
 
   document.querySelectorAll(".stock-tab").forEach(tab=>{
+
     tab.classList.remove("active");
 
     if(tab.dataset.stockView === "consolidated"){
       tab.classList.add("active");
     }
+
   });
 
   await loadAdminInventory();
 
 }
-
 
 /* =========================
    LOAD INVENTORY DATA
