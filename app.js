@@ -1,8 +1,37 @@
+const { createClient } = window.supabase;
+
+const db = createClient(
+  window.SUPABASE_URL,
+  window.SUPABASE_PUBLISHABLE_KEY
+);
+
+const $ = id => document.getElementById(id);
+
+
 /* =========================================================
-   BASIC HELPERS
+   GLOBAL STATE
 ========================================================= */
 
-const $ = (id) => document.getElementById(id);
+let code = "";
+let pin = "";
+let worker = null;
+let busy = false;
+
+let adminInventoryView = "consolidated";
+let adminInventoryCategory = "all";
+let adminInventoryData = [];
+
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function isAdmin() {
+  return (
+    worker &&
+    String(worker.role || "").toLowerCase() === "admin"
+  );
+}
 
 
 function escapeHtml(value) {
@@ -13,259 +42,54 @@ function escapeHtml(value) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
-
 }
 
 
-/* =========================================================
-   SUPABASE
-========================================================= */
+function showError(target, error) {
 
-const db = window.supabase.createClient(
-  window.SUPABASE_URL,
-  window.SUPABASE_PUBLISHABLE_KEY
-);
+  if (!target) return;
 
-
-/* =========================================================
-   APPLICATION STATE
-========================================================= */
-
-let worker = null;
-
-let code = "";
-let pin = "";
-
-let busy = false;
-
-
-/* ADMIN INVENTORY STATE */
-
-let adminInventoryData = [];
-
-let adminInventoryView = "consolidated";
-
-let adminInventoryCategory = "all";
-
-
-/* =========================================================
-   ROLE CHECK
-========================================================= */
-
-function isAdmin() {
-
-  if (!worker) return false;
-
-  return String(
-    worker.role || ""
-  ).toLowerCase() === "admin";
-
-}
-
-
-/* =========================================================
-   MODAL MANAGEMENT
-========================================================= */
-
-function getOpenModals() {
-
-  return Array.from(
-    document.querySelectorAll(".modal")
-  );
-
-}
-
-
-function closeTopModal() {
-
-  const modals = getOpenModals();
-
-  if (!modals.length) return false;
-
-  const modal = modals[modals.length - 1];
-
-  modal.remove();
-
-  busy = false;
-
-  return true;
-
-}
-
-
-function closeAllModals() {
-
-  document
-    .querySelectorAll(".modal")
-    .forEach(modal => modal.remove());
-
-  busy = false;
-
-}
-
-
-/* =========================================================
-   GENERIC MODAL
-========================================================= */
-
-function createModal(title, body, options = {}) {
-
-  const modal =
-    document.createElement("div");
-
-  modal.className = "modal";
-
-  modal.innerHTML = `
-
-    <div class="modalbox">
-
-      <h2>${title}</h2>
-
-      ${body}
-
-      ${
-        options.showClose === false
-          ? ""
-          : `
-          <button
-            class="cancel modalClose"
-            type="button"
-            style="margin-top:15px;width:100%">
-            ${options.closeText || "Close"}
-          </button>
-          `
-      }
-
-    </div>
-
+  target.innerHTML = `
+    <p style="color:#c93636;padding:15px">
+      ${escapeHtml(error?.message || error || "Something went wrong.")}
+    </p>
   `;
-
-
-  document.body.appendChild(modal);
-
-
-  const closeButton =
-    modal.querySelector(".modalClose");
-
-
-  if (closeButton) {
-
-    closeButton.onclick = () => {
-
-      modal.remove();
-
-      busy = false;
-
-    };
-
-  }
-
-
-  /*
-     Clicking dark background closes modal
-     unless explicitly disabled
-  */
-
-  if (options.backdropClose !== false) {
-
-    modal.addEventListener(
-      "click",
-      event => {
-
-        if (event.target === modal) {
-
-          modal.remove();
-
-          busy = false;
-
-        }
-
-      }
-    );
-
-  }
-
-
-  return modal;
-
 }
 
-
-/* =========================================================
-   ADMIN MODAL
-========================================================= */
-
-function adminBox(title, body) {
-
-  return createModal(
-    title,
-    body,
-    {
-      closeText: "Close"
-    }
-  );
-
-}
-
-
-/* =========================================================
-   CENTRAL REFRESH SYSTEM
-
-   This is the main fix for the inventory mismatch.
-
-   After ANY data-changing action:
-   Stock IN
-   Stock OUT
-   Product Edit
-   Product Add
-   Category Add
-   Transaction Correction
-   Paste Stock Update
-
-   refreshAll() reloads the currently relevant
-   inventory and summary information.
-========================================================= */
 
 async function refreshAll() {
 
   try {
 
-    if (!worker) return;
-
-
-    /*
-       ADMIN
-    */
-
     if (isAdmin()) {
 
-      /*
-         Refresh admin inventory data
-         even if panel is currently hidden.
-      */
+      const inventoryPanel = $("adminInventoryPanel");
 
-      await loadAdminInventory(false);
+      if (
+        inventoryPanel &&
+        !inventoryPanel.classList.contains("hidden")
+      ) {
+        await loadAdminInventory();
+      }
+
+    } else {
+
+      const workerPanel = $("workerInventoryPanel");
+
+      if (
+        workerPanel &&
+        !workerPanel.classList.contains("hidden")
+      ) {
+        await loadWorkerInventory();
+      }
 
     }
 
+    await loadSummary();
 
-    /*
-       WORKER
-    */
+  } catch (e) {
 
-    else {
-
-      await loadWorkerInventory();
-
-    }
-
-
-  } catch (error) {
-
-    console.error(
-      "Refresh error:",
-      error
-    );
+    console.error("Refresh error:", e);
 
   }
 
@@ -273,74 +97,97 @@ async function refreshAll() {
 
 
 /* =========================================================
-   DASHBOARD VISIBILITY
+   BROWSER BACK BUTTON
 ========================================================= */
 
-function hideDashboardSections() {
+function pushAppState() {
 
-  const elements = [
-
-    document.querySelector(".actions"),
-
-    $("adminActions"),
-
-    document.querySelector(".dashboard-stock-update"),
-
-    $("workerInventoryPanel")
-
-  ];
-
-
-  elements.forEach(element => {
-
-    if (element) {
-
-      element.classList.add("hidden");
-
-    }
-
-  });
+  history.pushState(
+    { jmp: 1 },
+    "",
+    location.href
+  );
 
 }
 
 
-function showDashboardSections() {
-
-  const actions =
-    document.querySelector(".actions");
+pushAppState();
 
 
-  if (actions) {
+window.addEventListener("popstate", () => {
 
-    actions.classList.remove("hidden");
+  const modals =
+    document.querySelectorAll(".modal");
 
-  }
+  if (modals.length) {
 
+    modals[modals.length - 1].remove();
 
-  if (isAdmin()) {
-
-    $("adminActions")
-      ?.classList.remove("hidden");
-
-
-    document
-      .querySelector(".dashboard-stock-update")
-      ?.classList.remove("hidden");
+    busy = false;
 
   }
 
-  else {
+  pushAppState();
 
-    $("workerInventoryPanel")
-      ?.classList.remove("hidden");
-
-  }
-
-}
+});
 
 
 /* =========================================================
    LOGIN
+========================================================= */
+
+if ($("signIn")) {
+  $("signIn").onclick = login;
+}
+
+
+if ($("pin")) {
+
+  $("pin").onkeydown = e => {
+
+    if (e.key === "Enter") {
+      login();
+    }
+
+  };
+
+}
+
+
+if ($("accessCode")) {
+
+  $("accessCode").onkeydown = e => {
+
+    if (e.key === "Enter") {
+
+      $("pin")?.focus();
+
+    }
+
+  };
+
+}
+
+
+/* =========================================================
+   LOGOUT
+========================================================= */
+
+if ($("logout")) {
+
+  $("logout").onclick = () => {
+
+    localStorage.removeItem("jmp_worker");
+
+    location.reload();
+
+  };
+
+}
+
+
+/* =========================================================
+   LOGIN FUNCTION
 ========================================================= */
 
 async function login() {
@@ -364,13 +211,7 @@ async function login() {
 
   const button = $("signIn");
 
-
-  if (button) {
-
-    button.disabled = true;
-
-  }
-
+  button.disabled = true;
 
   $("loginMsg").textContent =
     "Checking...";
@@ -391,7 +232,7 @@ async function login() {
     if (error) throw error;
 
 
-    if (!data || !data.length) {
+    if (!data?.length) {
 
       $("loginMsg").textContent =
         "Incorrect access code or password.";
@@ -404,13 +245,6 @@ async function login() {
     worker = data[0];
 
 
-    /*
-       Save worker session information.
-
-       Credentials themselves are intentionally
-       not auto-restored.
-    */
-
     localStorage.setItem(
       "jmp_worker",
       JSON.stringify(worker)
@@ -421,11 +255,7 @@ async function login() {
 
       $("welcome").textContent =
         "Signed in as " +
-        (
-          worker.worker_name ||
-          worker.name ||
-          ""
-        );
+        worker.worker_name;
 
     }
 
@@ -433,29 +263,19 @@ async function login() {
     $("loginScreen")
       ?.classList.add("hidden");
 
-
     $("homeScreen")
       ?.classList.remove("hidden");
 
 
-    /*
-       ADMIN VIEW
-    */
+    /* ADMIN VIEW */
 
     if (isAdmin()) {
 
       $("adminActions")
         ?.classList.remove("hidden");
 
-
-      document
-        .querySelector(".dashboard-stock-update")
-        ?.classList.remove("hidden");
-
-
       $("workerInventoryPanel")
         ?.classList.add("hidden");
-
 
       $("adminInventoryPanel")
         ?.classList.add("hidden");
@@ -463,20 +283,9 @@ async function login() {
     }
 
 
-    /*
-       WORKER VIEW
-    */
+    /* WORKER VIEW */
 
     else {
-
-      $("adminActions")
-        ?.classList.add("hidden");
-
-
-      document
-        .querySelector(".dashboard-stock-update")
-        ?.classList.add("hidden");
-
 
       $("workerInventoryPanel")
         ?.classList.remove("hidden");
@@ -484,106 +293,31 @@ async function login() {
     }
 
 
-    await refreshAll();
+    await loadSummary();
 
 
-    $("loginMsg").textContent = "";
+    if (!isAdmin()) {
+
+      await loadWorkerInventory();
+
+    }
 
 
-  } catch (error) {
+  } catch (e) {
 
-    console.error(error);
-
+    console.error(e);
 
     $("loginMsg").textContent =
-      error.message ||
-      "Login error.";
+      e.message || "Login error.";
 
   }
 
 
   finally {
 
-    if (button) {
-
-      button.disabled = false;
-
-    }
+    button.disabled = false;
 
   }
-
-}
-
-
-/* =========================================================
-   LOGIN BUTTON EVENTS
-========================================================= */
-
-if ($("signIn")) {
-
-  $("signIn").onclick = login;
-
-}
-
-
-if ($("pin")) {
-
-  $("pin").addEventListener(
-    "keydown",
-    event => {
-
-      if (event.key === "Enter") {
-
-        login();
-
-      }
-
-    }
-  );
-
-}
-
-
-if ($("accessCode")) {
-
-  $("accessCode").addEventListener(
-    "keydown",
-    event => {
-
-      if (event.key === "Enter") {
-
-        $("pin")?.focus();
-
-      }
-
-    }
-  );
-
-}
-
-
-/* =========================================================
-   LOGOUT
-========================================================= */
-
-if ($("logout")) {
-
-  $("logout").onclick = () => {
-
-    closeAllModals();
-
-    localStorage.removeItem(
-      "jmp_worker"
-    );
-
-    worker = null;
-
-    code = "";
-    pin = "";
-
-    location.reload();
-
-  };
 
 }
 
@@ -627,29 +361,14 @@ async function loadWorkerInventory() {
 
   try {
 
-    const products =
+    const data =
       await getWorkerProducts();
 
 
-    if (!products.length) {
+    if (!data.length) {
 
-      list.innerHTML = `
-
-        <div class="item">
-
-          <div>
-
-            <b>No products found</b>
-
-            <small>
-              No inventory available.
-            </small>
-
-          </div>
-
-        </div>
-
-      `;
+      list.innerHTML =
+        "<p>No products found.</p>";
 
       return;
 
@@ -657,26 +376,16 @@ async function loadWorkerInventory() {
 
 
     list.innerHTML =
-      products.map(product => {
+      data.map(p => {
 
-        const quantity =
-          Number(
-            product.current_stock ??
-            product.stock ??
-            product.quantity ??
-            0
-          );
-
+        const stock =
+          Number(p.current_stock || 0);
 
         const threshold =
-          Number(
-            product.threshold ?? 0
-          );
-
+          Number(p.threshold || 0);
 
         const low =
-          threshold > 0 &&
-          quantity <= threshold;
+          stock <= threshold;
 
 
         return `
@@ -686,49 +395,28 @@ async function loadWorkerInventory() {
             <div>
 
               <b>
-
-                ${escapeHtml(
-                  product.product_name ||
-                  product.name
-                )}
-
+                ${escapeHtml(p.name)}
               </b>
 
-
               <small>
-
-                ${escapeHtml(
-                  product.category_name ||
-                  "Uncategorized"
-                )}
-
+                Minimum: ${threshold}
               </small>
 
             </div>
 
 
-            <div class="qty">
+            <strong class="qty">
 
-              ${quantity}
+              ${stock}
 
-              ${
-                product.unit
-                  ? `<small>${escapeHtml(product.unit)}</small>`
-                  : ""
-              }
+              <span
+                class="badge ${low ? "low" : ""}">
 
+                ${low ? "LOW" : "OK"}
 
-              ${
-                low
-                  ? `
-                    <span class="badge low">
-                      LOW
-                    </span>
-                    `
-                  : ""
-              }
+              </span>
 
-            </div>
+            </strong>
 
           </div>
 
@@ -737,32 +425,124 @@ async function loadWorkerInventory() {
       }).join("");
 
 
-  } catch (error) {
+  } catch (e) {
 
-    console.error(error);
+    console.error(e);
+
+    showError(list, e);
+
+  }
+
+}
 
 
-    list.innerHTML = `
+/* OLD COMPATIBILITY FUNCTION */
 
-      <div class="item">
+async function loadInventory() {
 
-        <div>
+  if (isAdmin()) {
 
-          <b>Error loading inventory</b>
+    const panel =
+      $("adminInventoryPanel");
 
-          <small>
+    if (
+      panel &&
+      !panel.classList.contains("hidden")
+    ) {
 
-            ${escapeHtml(
-              error.message
-            )}
+      return loadAdminInventory();
 
-          </small>
+    }
+
+    return;
+
+  }
+
+
+  return loadWorkerInventory();
+
+}
+
+
+/* =========================================================
+   STOCK SUMMARY
+========================================================= */
+
+async function loadSummary() {
+
+  if (!worker) return;
+
+
+  try {
+
+    const { data, error } =
+      await db.rpc(
+        "worker_stock_summary",
+        {
+          p_access_code: code,
+          p_pin: pin
+        }
+      );
+
+
+    if (error) {
+
+      console.warn(
+        "Summary error:",
+        error.message
+      );
+
+      return;
+
+    }
+
+
+    let element =
+      $("summaryList");
+
+
+    if (!element) return;
+
+
+    element.innerHTML =
+      (data || []).map(p => `
+
+        <div class="item">
+
+          <div>
+
+            <b>
+              ${escapeHtml(p.product_name)}
+            </b>
+
+            <small>
+
+              IN: ${p.stock_in}
+              &nbsp;
+              OUT: ${p.stock_out}
+
+            </small>
+
+          </div>
+
+
+          <strong class="qty">
+
+            ${p.net_stock}
+
+          </strong>
 
         </div>
 
-      </div>
+      `).join("");
 
-    `;
+
+  } catch (e) {
+
+    console.warn(
+      "Summary error:",
+      e.message
+    );
 
   }
 
@@ -770,40 +550,335 @@ async function loadWorkerInventory() {
 
 
 /* =========================================================
-   INVENTORY BUTTON
+   STOCK IN / STOCK OUT
 ========================================================= */
 
-if ($("inventory")) {
+async function move(type) {
 
-  $("inventory").onclick =
-    async () => {
-
-      if (!worker) return;
+  if (busy || !worker) return;
 
 
-      if (isAdmin()) {
-
-        await openAdminInventory();
-
-      }
-
-      else {
-
-        $("workerInventoryPanel")
-          ?.classList.remove("hidden");
+  busy = true;
 
 
-        await loadWorkerInventory();
+  try {
 
-      }
+    const data =
+      await getWorkerProducts();
 
-    };
+
+    if (!data.length) {
+
+      alert("No products available.");
+
+      busy = false;
+
+      return;
+
+    }
+
+
+    const modal =
+      document.createElement("div");
+
+
+    modal.className =
+      "modal";
+
+
+    modal.innerHTML = `
+
+      <div class="modalbox">
+
+        <h2>
+          Stock ${type}
+        </h2>
+
+
+        <p>
+          Select product:
+        </p>
+
+
+        <div id="productChoices">
+
+          ${data.map(p => `
+
+            <button
+              class="product"
+              type="button"
+              data-id="${p.product_id}"
+              data-stock="${Number(p.current_stock || 0)}">
+
+              <b>
+                ${escapeHtml(p.name)}
+              </b>
+
+              <small>
+
+                Current Stock:
+                ${Number(p.current_stock || 0)}
+
+              </small>
+
+            </button>
+
+          `).join("")}
+
+        </div>
+
+
+        <button
+          id="cancelMove"
+          class="cancel"
+          type="button">
+
+          Close
+
+        </button>
+
+      </div>
+
+    `;
+
+
+    document.body.appendChild(modal);
+
+
+    modal.querySelector("#cancelMove")
+      .onclick = () => {
+
+        modal.remove();
+
+        busy = false;
+
+      };
+
+
+    modal
+      .querySelectorAll(".product")
+      .forEach(button => {
+
+
+        button.onclick = () => {
+
+          const productId =
+            Number(button.dataset.id);
+
+          const stock =
+            Number(button.dataset.stock);
+
+
+          modal.innerHTML = `
+
+            <div class="modalbox">
+
+              <h2>
+                Stock ${type}
+              </h2>
+
+
+              <p>
+
+                <b>
+                  ${escapeHtml(
+                    button.querySelector("b")
+                      ?.textContent
+                  )}
+                </b>
+
+              </p>
+
+
+              <input
+                id="qty"
+                type="number"
+                min="1"
+                placeholder="Enter quantity">
+
+
+              <p id="stockMsg"></p>
+
+
+              <button
+                id="saveQty"
+                class="save"
+                type="button">
+
+                Save Stock ${type}
+
+              </button>
+
+
+              <button
+                id="cancelQty"
+                class="cancel"
+                type="button">
+
+                Back
+
+              </button>
+
+            </div>
+
+          `;
+
+
+          modal
+            .querySelector("#cancelQty")
+            .onclick = () => {
+
+              modal.remove();
+
+              busy = false;
+
+              move(type);
+
+            };
+
+
+          modal
+            .querySelector("#saveQty")
+            .onclick = async () => {
+
+
+              const quantity =
+                Number(
+                  modal.querySelector("#qty").value
+                );
+
+
+              if (
+                !Number.isInteger(quantity) ||
+                quantity < 1
+              ) {
+
+                modal.querySelector("#stockMsg")
+                  .textContent =
+                  "Enter a valid quantity.";
+
+                return;
+
+              }
+
+
+              if (
+                type === "OUT" &&
+                quantity > stock
+              ) {
+
+                modal.querySelector("#stockMsg")
+                  .textContent =
+                  "Insufficient stock.";
+
+                return;
+
+              }
+
+
+              if (!confirm(
+
+                `Save Stock ${type} of ${quantity}?`
+
+              )) return;
+
+
+              const saveButton =
+                modal.querySelector("#saveQty");
+
+
+              saveButton.disabled = true;
+
+
+              modal.querySelector("#stockMsg")
+                .textContent =
+                "Saving...";
+
+
+              try {
+
+                const { error } =
+                  await db.rpc(
+
+                    type === "IN"
+                      ? "stock_in"
+                      : "stock_out",
+
+                    {
+                      p_product_id: productId,
+                      p_user_id: worker.user_id,
+                      p_quantity: quantity
+                    }
+
+                  );
+
+
+                if (error) throw error;
+
+
+                modal.remove();
+
+                busy = false;
+
+
+                /* CRITICAL REFRESH */
+
+                await refreshAll();
+
+
+                alert(
+                  `Stock ${type} saved successfully.`
+                );
+
+
+              } catch (e) {
+
+                saveButton.disabled = false;
+
+                modal.querySelector("#stockMsg")
+                  .textContent =
+                  e.message;
+
+              }
+
+            };
+
+        };
+
+      });
+
+
+  } catch (e) {
+
+    console.error(e);
+
+    alert(e.message);
+
+    busy = false;
+
+  }
+
+}
+
+
+if ($("stockIn")) {
+
+  $("stockIn").onclick =
+    () => move("IN");
+
+}
+
+
+if ($("stockOut")) {
+
+  $("stockOut").onclick =
+    () => move("OUT");
 
 }
 
 
 /* =========================================================
-   ADMIN INVENTORY OPEN
+   ADMIN INVENTORY
 ========================================================= */
 
 async function openAdminInventory() {
@@ -811,16 +886,47 @@ async function openAdminInventory() {
   if (!isAdmin()) return;
 
 
-  hideDashboardSections();
+  const dashboard =
+    $("dashboard");
+
+  const adminPanel =
+    $("adminInventoryPanel");
 
 
-  $("adminInventoryPanel")
-    ?.classList.remove("hidden");
+  if (!adminPanel) {
 
+    alert(
+      "Admin Inventory panel not found."
+    );
+
+    return;
+
+  }
+
+
+  /* Hide dashboard */
+
+  if (dashboard) {
+
+    dashboard.classList.add("hidden");
+
+  }
+
+
+  $("workerInventoryPanel")
+    ?.classList.add("hidden");
+
+
+  /* Show inventory */
+
+  adminPanel
+    .classList.remove("hidden");
+
+
+  /* Reset */
 
   adminInventoryView =
     "consolidated";
-
 
   adminInventoryCategory =
     "all";
@@ -828,7 +934,6 @@ async function openAdminInventory() {
 
   const search =
     $("adminProductSearch");
-
 
   if (search) {
 
@@ -855,17 +960,14 @@ async function openAdminInventory() {
 }
 
 
-/* =========================================================
-   CLOSE ADMIN INVENTORY
-========================================================= */
-
-function closeAdminInventory() {
+async function closeAdminInventory() {
 
   $("adminInventoryPanel")
     ?.classList.add("hidden");
 
 
-  showDashboardSections();
+  $("dashboard")
+    ?.classList.remove("hidden");
 
 }
 
@@ -874,7 +976,7 @@ function closeAdminInventory() {
    LOAD ADMIN INVENTORY
 ========================================================= */
 
-async function loadAdminInventory(showLoading = true) {
+async function loadAdminInventory() {
 
   const list =
     $("adminInventoryList");
@@ -883,24 +985,32 @@ async function loadAdminInventory(showLoading = true) {
   if (!list) return;
 
 
-  if (showLoading) {
-
-    list.innerHTML =
-      "Loading inventory...";
-
-  }
+  list.innerHTML =
+    "Loading inventory...";
 
 
   try {
 
     /*
-       Existing backend function.
+      IMPORTANT:
 
-       IMPORTANT:
-       No access code/PIN parameters are passed
-       because your tested function returns the
-       inventory directly.
+      Your current SQL test showed
+      admin_inventory_by_location
+      returning:
+
+      product_id
+      product_name
+      category_id
+      category_name
+      unit
+      threshold
+      kumar_stock
+      office_stock
+      consolidated_stock
+
+      Therefore NO parameters are passed.
     */
+
 
     const { data, error } =
       await db.rpc(
@@ -915,38 +1025,21 @@ async function loadAdminInventory(showLoading = true) {
       data || [];
 
 
-    buildAdminCategoryTabs();
+    renderAdminCategoryTabs();
 
 
-    renderAdminInventory();
+    renderAdminInventoryList();
 
 
-  } catch (error) {
+  } catch (e) {
 
-    console.error(error);
+    console.error(
+      "Admin inventory error:",
+      e
+    );
 
 
-    list.innerHTML = `
-
-      <div class="item">
-
-        <div>
-
-          <b>Error loading inventory</b>
-
-          <small>
-
-            ${escapeHtml(
-              error.message
-            )}
-
-          </small>
-
-        </div>
-
-      </div>
-
-    `;
+    showError(list, e);
 
   }
 
@@ -954,50 +1047,55 @@ async function loadAdminInventory(showLoading = true) {
 
 
 /* =========================================================
-   BUILD ADMIN CATEGORY TABS
+   CATEGORY TABS
 ========================================================= */
 
-function buildAdminCategoryTabs() {
+function renderAdminCategoryTabs() {
 
-  const box =
+  const container =
     $("adminCategoryTabs");
 
 
-  if (!box) return;
+  if (!container) return;
 
 
-  const categories = [];
+  const categories =
+    [...new Map(
+
+      adminInventoryData
+        .filter(x => x.category_name)
+        .map(x => [
+
+          String(
+            x.category_id ||
+            x.category_name
+          ),
+
+          {
+            id:
+              x.category_id ||
+              x.category_name,
+
+            name:
+              x.category_name
+          }
+
+        ])
+
+    ).values()]
 
 
-  adminInventoryData.forEach(item => {
-
-    if (
-      item.category_id &&
-      !categories.some(
-        category =>
-          Number(category.id) ===
-          Number(item.category_id)
-      )
-    ) {
-
-      categories.push({
-        id: item.category_id,
-        name: item.category_name
-      });
-
-    }
-
-  });
+      .sort(
+        (a, b) =>
+          String(a.name)
+            .localeCompare(String(b.name))
+      );
 
 
-  box.innerHTML = `
+  container.innerHTML = `
 
     <button
-      class="category-tab ${
-        adminInventoryCategory === "all"
-          ? "active"
-          : ""
-      }"
+      class="category-tab ${adminInventoryCategory === "all" ? "active" : ""}"
       data-category="all"
       type="button">
 
@@ -1009,13 +1107,13 @@ function buildAdminCategoryTabs() {
     ${categories.map(category => `
 
       <button
-        class="category-tab ${
-          String(adminInventoryCategory) ===
-          String(category.id)
-            ? "active"
-            : ""
-        }"
-        data-category="${category.id}"
+        class="category-tab
+        ${String(adminInventoryCategory) === String(category.id)
+          ? "active"
+          : ""}"
+
+        data-category="${escapeHtml(category.id)}"
+
         type="button">
 
         ${escapeHtml(category.name)}
@@ -1027,7 +1125,7 @@ function buildAdminCategoryTabs() {
   `;
 
 
-  box
+  container
     .querySelectorAll(".category-tab")
     .forEach(button => {
 
@@ -1036,20 +1134,9 @@ function buildAdminCategoryTabs() {
         adminInventoryCategory =
           button.dataset.category;
 
+        renderAdminCategoryTabs();
 
-        box
-          .querySelectorAll(".category-tab")
-          .forEach(tab => {
-
-            tab.classList.remove("active");
-
-          });
-
-
-        button.classList.add("active");
-
-
-        renderAdminInventory();
+        renderAdminInventoryList();
 
       };
 
@@ -1062,7 +1149,7 @@ function buildAdminCategoryTabs() {
    RENDER ADMIN INVENTORY
 ========================================================= */
 
-function renderAdminInventory() {
+function renderAdminInventoryList() {
 
   const list =
     $("adminInventoryList");
@@ -1072,73 +1159,89 @@ function renderAdminInventory() {
 
 
   const search =
-    (
-      $("adminProductSearch")?.value ||
-      ""
+    String(
+      $("adminProductSearch")
+        ?.value || ""
     )
-      .toLowerCase()
-      .trim();
+      .trim()
+      .toLowerCase();
 
 
-  let items =
-    adminInventoryData.filter(item => {
+  let rows =
+    [...adminInventoryData];
 
 
-      /*
-         CATEGORY FILTER
-      */
+  /* CATEGORY FILTER */
 
-      if (
-        adminInventoryCategory !== "all" &&
-        Number(item.category_id) !==
-        Number(adminInventoryCategory)
-      ) {
+  if (
+    adminInventoryCategory !== "all"
+  ) {
 
-        return false;
+    rows =
+      rows.filter(row =>
 
-      }
+        String(
+          row.category_id ||
+          row.category_name
+        ) ===
+        String(adminInventoryCategory)
+
+      );
+
+  }
 
 
-      /*
-         SEARCH FILTER
-      */
+  /* SEARCH FILTER */
 
-      if (
-        search &&
-        !String(
-          item.product_name || ""
-        )
+  if (search) {
+
+    rows =
+      rows.filter(row =>
+
+        String(row.product_name || "")
           .toLowerCase()
           .includes(search)
-      ) {
 
-        return false;
+      );
 
-      }
-
-
-      return true;
-
-    });
+  }
 
 
-  if (!items.length) {
+  /* SORT BY CATEGORY THEN PRODUCT */
+
+  rows.sort((a, b) => {
+
+    const categoryCompare =
+      String(a.category_name || "")
+        .localeCompare(
+          String(b.category_name || "")
+        );
+
+
+    if (categoryCompare !== 0) {
+
+      return categoryCompare;
+
+    }
+
+
+    return String(a.product_name || "")
+      .localeCompare(
+        String(b.product_name || "")
+      );
+
+  });
+
+
+  if (!rows.length) {
 
     list.innerHTML = `
 
-      <div class="item">
+      <p style="padding:20px;text-align:center">
 
-        <div>
+        No products found.
 
-          <b>No products found</b>
-
-          <small>
-            Try another category or search.
-          </small>
-
-        </div>
-
-      </div>
+      </p>
 
     `;
 
@@ -1147,62 +1250,35 @@ function renderAdminInventory() {
   }
 
 
+  const stockField =
+
+    adminInventoryView === "kumar"
+      ? "kumar_stock"
+
+      : adminInventoryView === "office"
+        ? "office_stock"
+
+        : "consolidated_stock";
+
+
   list.innerHTML =
-    items.map(item => {
+    rows.map(row => {
 
 
-      let stock = 0;
-
-
-      /*
-         KUMAR STOCK
-      */
-
-      if (
-        adminInventoryView === "kumar"
-      ) {
-
-        stock =
-          Number(item.kumar_stock || 0);
-
-      }
-
-
-      /*
-         OFFICE STOCK
-      */
-
-      else if (
-        adminInventoryView === "office"
-      ) {
-
-        stock =
-          Number(item.office_stock || 0);
-
-      }
-
-
-      /*
-         CONSOLIDATED STOCK
-      */
-
-      else {
-
-        stock =
-          Number(
-            item.consolidated_stock ?? 0
-          );
-
-      }
+      const quantity =
+        Number(
+          row[stockField] || 0
+        );
 
 
       const threshold =
-        Number(item.threshold || 0);
+        Number(
+          row.threshold || 0
+        );
 
 
       const low =
-        threshold > 0 &&
-        stock <= threshold;
+        quantity <= threshold;
 
 
       return `
@@ -1214,7 +1290,7 @@ function renderAdminInventory() {
             <b>
 
               ${escapeHtml(
-                item.product_name
+                row.product_name
               )}
 
             </b>
@@ -1223,18 +1299,18 @@ function renderAdminInventory() {
             <small>
 
               ${escapeHtml(
-                item.category_name ||
-                "Uncategorized"
+                row.category_name || "Uncategorized"
               )}
 
-              · Threshold:
+              ·
+
+              Min:
               ${threshold}
 
-              ${
-                item.unit
-                  ? " " +
-                    escapeHtml(item.unit)
-                  : ""
+              ${row.unit
+                ? " " +
+                  escapeHtml(row.unit)
+                : ""
               }
 
             </small>
@@ -1242,27 +1318,25 @@ function renderAdminInventory() {
           </div>
 
 
-          <div class="qty">
+          <strong class="qty">
 
-            ${stock}
+            ${quantity}
 
-            ${
-              item.unit
-                ? `<small>${escapeHtml(item.unit)}</small>`
-                : ""
+            ${row.unit
+              ? `<small>${escapeHtml(row.unit)}</small>`
+              : ""
             }
 
 
             <span
-              class="badge ${
-                low ? "low" : ""
-              }">
+              class="badge
+              ${low ? "low" : ""}">
 
               ${low ? "LOW" : "OK"}
 
             </span>
 
-          </div>
+          </strong>
 
         </div>
 
@@ -1274,7 +1348,46 @@ function renderAdminInventory() {
 
 
 /* =========================================================
-   ADMIN STOCK VIEW TABS
+   INVENTORY BUTTON
+========================================================= */
+
+if ($("inventory")) {
+
+  $("inventory").onclick =
+    async () => {
+
+      if (isAdmin()) {
+
+        await openAdminInventory();
+
+      } else {
+
+        $("workerInventoryPanel")
+          ?.classList.remove("hidden");
+
+        await loadWorkerInventory();
+
+      }
+
+    };
+
+}
+
+
+/* =========================================================
+   BACK TO DASHBOARD
+========================================================= */
+
+if ($("backToDashboard")) {
+
+  $("backToDashboard").onclick =
+    closeAdminInventory;
+
+}
+
+
+/* =========================================================
+   STOCK VIEW TABS
 ========================================================= */
 
 document
@@ -1289,17 +1402,17 @@ document
 
       document
         .querySelectorAll(".stock-tab")
-        .forEach(button => {
+        .forEach(item => {
 
-          button.classList.toggle(
+          item.classList.toggle(
             "active",
-            button === tab
+            item === tab
           );
 
         });
 
 
-      renderAdminInventory();
+      renderAdminInventoryList();
 
     };
 
@@ -1307,7 +1420,7 @@ document
 
 
 /* =========================================================
-   ADMIN INVENTORY SEARCH
+   INVENTORY SEARCH
 ========================================================= */
 
 if ($("adminProductSearch")) {
@@ -1315,597 +1428,67 @@ if ($("adminProductSearch")) {
   $("adminProductSearch")
     .addEventListener(
       "input",
-      renderAdminInventory
+      renderAdminInventoryList
     );
 
 }
 
 
 /* =========================================================
-   STOCK IN / STOCK OUT
+   ADMIN MODAL
 ========================================================= */
 
-async function move(type) {
+function adminBox(title, body) {
 
-  if (!worker) return;
-
-
-  if (busy) return;
+  const modal =
+    document.createElement("div");
 
 
-  busy = true;
+  modal.className =
+    "modal";
 
 
-  try {
+  modal.innerHTML = `
 
-    const products =
-      await getWorkerProducts();
+    <div class="modalbox">
+
+      <h2>
+        ${title}
+      </h2>
 
 
-    if (!products.length) {
+      ${body}
+
+
+      <button
+        class="cancel adminClose"
+        type="button">
+
+        Close
+
+      </button>
+
+    </div>
+
+  `;
+
+
+  document.body
+    .appendChild(modal);
+
+
+  modal
+    .querySelector(".adminClose")
+    .onclick = () => {
+
+      modal.remove();
 
       busy = false;
 
-      alert(
-        "No products available."
-      );
+    };
 
-      return;
 
-    }
-
-
-    /*
-       Group products by category
-    */
-
-    const groups = {};
-
-
-    products.forEach(product => {
-
-      const category =
-        product.category_name ||
-        "Uncategorized";
-
-
-      if (!groups[category]) {
-
-        groups[category] = [];
-
-      }
-
-
-      groups[category].push(product);
-
-    });
-
-
-    const modal =
-      createModal(
-
-        `Stock ${type}`,
-
-        `
-
-        <p id="stockStepText">
-
-          Select category:
-
-        </p>
-
-
-        <div id="categoryChoices">
-
-          ${Object.keys(groups)
-            .map(category => `
-
-              <button
-                class="product categoryChoice"
-                data-category="${escapeHtml(category)}"
-                type="button"
-                style="width:100%;margin-bottom:10px">
-
-                ${escapeHtml(category)}
-
-              </button>
-
-            `)
-            .join("")}
-
-        </div>
-
-
-        <div
-          id="productChoices"
-          style="display:none">
-
-        </div>
-
-
-        <div
-          id="qtyBox"
-          class="qtybox"
-          style="display:none">
-
-          <p>
-
-            Product:
-            <b id="chosen"></b>
-
-          </p>
-
-
-          <input
-            id="qty"
-            type="number"
-            min="1"
-            step="1"
-            inputmode="numeric"
-            placeholder="Enter quantity">
-
-
-          <p
-            id="stockMsg"
-            class="message">
-
-          </p>
-
-
-          <button
-            id="saveQty"
-            class="save"
-            type="button"
-            style="width:100%;margin-top:10px">
-
-            Save Stock ${type}
-
-          </button>
-
-
-          <button
-            id="backToProducts"
-            class="cancel"
-            type="button"
-            style="width:100%;margin-top:10px">
-
-            ← Back to Products
-
-          </button>
-
-        </div>
-
-        `
-
-      );
-
-
-    /*
-       Store selected product safely
-    */
-
-    let selectedProduct = null;
-
-
-    /*
-       CATEGORY SELECTION
-    */
-
-    modal
-      .querySelectorAll(".categoryChoice")
-      .forEach(button => {
-
-        button.onclick = () => {
-
-          const category =
-            button.dataset.category;
-
-
-          const productBox =
-            modal.querySelector(
-              "#productChoices"
-            );
-
-
-          modal
-            .querySelector("#categoryChoices")
-            .style.display = "none";
-
-
-          productBox.style.display =
-            "block";
-
-
-          modal
-            .querySelector("#stockStepText")
-            .textContent =
-            "Select product:";
-
-
-          productBox.innerHTML = `
-
-            <button
-              id="backCategory"
-              class="cancel"
-              type="button"
-              style="width:100%;margin-bottom:12px">
-
-              ← Back to Categories
-
-            </button>
-
-
-            ${
-              groups[category]
-                .map(product => {
-
-                  const stock =
-                    Number(
-                      product.current_stock ??
-                      product.stock ??
-                      product.quantity ??
-                      0
-                    );
-
-
-                  return `
-
-                    <button
-                      class="product productChoice"
-                      data-id="${product.product_id || product.id}"
-                      data-name="${escapeHtml(
-                        product.product_name ||
-                        product.name
-                      )}"
-                      data-stock="${stock}"
-                      type="button"
-                      style="width:100%;margin-bottom:10px">
-
-                      <span>
-
-                        ${escapeHtml(
-                          product.product_name ||
-                          product.name
-                        )}
-
-                      </span>
-
-
-                      <small>
-
-                        Current:
-                        ${stock}
-
-                      </small>
-
-                    </button>
-
-                  `;
-
-                })
-                .join("")
-            }
-
-          `;
-
-
-          /*
-             BACK TO CATEGORIES
-          */
-
-          productBox
-            .querySelector("#backCategory")
-            .onclick = () => {
-
-              productBox.style.display =
-                "none";
-
-
-              modal
-                .querySelector("#categoryChoices")
-                .style.display =
-                "block";
-
-
-              modal
-                .querySelector("#stockStepText")
-                .textContent =
-                "Select category:";
-
-            };
-
-
-          /*
-             PRODUCT SELECTION
-          */
-
-          productBox
-            .querySelectorAll(".productChoice")
-            .forEach(productButton => {
-
-              productButton.onclick = () => {
-
-                selectedProduct = {
-
-                  id:
-                    Number(
-                      productButton.dataset.id
-                    ),
-
-                  name:
-                    productButton.dataset.name,
-
-                  stock:
-                    Number(
-                      productButton.dataset.stock
-                    )
-
-                };
-
-
-                productBox.style.display =
-                  "none";
-
-
-                modal
-                  .querySelector("#qtyBox")
-                  .style.display =
-                  "block";
-
-
-                modal
-                  .querySelector("#stockStepText")
-                  .textContent =
-                  "Enter quantity:";
-
-
-                modal
-                  .querySelector("#chosen")
-                  .textContent =
-                  selectedProduct.name;
-
-
-                setTimeout(() => {
-
-                  modal
-                    .querySelector("#qty")
-                    ?.focus();
-
-                }, 50);
-
-              };
-
-            });
-
-        };
-
-      });
-
-
-    /*
-       BACK FROM QUANTITY
-       TO PRODUCTS
-    */
-
-    modal
-      .querySelector("#backToProducts")
-      .onclick = () => {
-
-        modal
-          .querySelector("#qtyBox")
-          .style.display =
-          "none";
-
-
-        modal
-          .querySelector("#productChoices")
-          .style.display =
-          "block";
-
-
-        modal
-          .querySelector("#stockStepText")
-          .textContent =
-          "Select product:";
-
-
-        modal
-          .querySelector("#qty")
-          .value = "";
-
-
-        modal
-          .querySelector("#stockMsg")
-          .textContent = "";
-
-      };
-
-
-    /*
-       SAVE STOCK
-    */
-
-    modal
-      .querySelector("#saveQty")
-      .onclick = async () => {
-
-
-        if (!selectedProduct) {
-
-          modal
-            .querySelector("#stockMsg")
-            .textContent =
-            "Select a product first.";
-
-          return;
-
-        }
-
-
-        const quantity =
-          Number(
-            modal
-              .querySelector("#qty")
-              .value
-          );
-
-
-        if (
-          !Number.isInteger(quantity) ||
-          quantity < 1
-        ) {
-
-          modal
-            .querySelector("#stockMsg")
-            .textContent =
-            "Enter a valid quantity.";
-
-          return;
-
-        }
-
-
-        if (
-          type === "OUT" &&
-          quantity >
-          selectedProduct.stock
-        ) {
-
-          modal
-            .querySelector("#stockMsg")
-            .textContent =
-            "Insufficient stock.";
-
-          return;
-
-        }
-
-
-        if (
-          !confirm(
-            `Save Stock ${type} of ${quantity} for ${selectedProduct.name}?`
-          )
-        ) {
-
-          return;
-
-        }
-
-
-        const saveButton =
-          modal.querySelector("#saveQty");
-
-
-        saveButton.disabled = true;
-
-
-        modal
-          .querySelector("#stockMsg")
-          .textContent =
-          "Saving...";
-
-
-        try {
-
-          const { error } =
-            await db.rpc(
-
-              type === "IN"
-                ? "stock_in"
-                : "stock_out",
-
-              {
-                p_product_id:
-                  selectedProduct.id,
-
-                p_user_id:
-                  worker.user_id,
-
-                p_quantity:
-                  quantity
-              }
-
-            );
-
-
-          if (error) throw error;
-
-
-          modal.remove();
-
-
-          busy = false;
-
-
-          /*
-             CENTRAL REFRESH
-
-             This fixes the original issue where
-             stock changed in transactions but
-             inventory screens continued showing
-             old values.
-          */
-
-          await refreshAll();
-
-
-          alert(
-            `Stock ${type} saved successfully.`
-          );
-
-
-        } catch (error) {
-
-          console.error(error);
-
-
-          saveButton.disabled = false;
-
-
-          modal
-            .querySelector("#stockMsg")
-            .textContent =
-            error.message;
-
-        }
-
-      };
-
-
-  } catch (error) {
-
-    console.error(error);
-
-
-    alert(
-      error.message ||
-      "Unable to load products."
-    );
-
-
-    busy = false;
-
-  }
-
-}
-
-
-/* =========================================================
-   STOCK BUTTON EVENTS
-========================================================= */
-
-if ($("stockIn")) {
-
-  $("stockIn").onclick =
-    () => move("IN");
-
-}
-
-
-if ($("stockOut")) {
-
-  $("stockOut").onclick =
-    () => move("OUT");
+  return modal;
 
 }
 
@@ -1940,15 +1523,13 @@ async function adminCategories() {
 
         <input
           id="newCat"
-          placeholder="New category name"
-          style="width:100%;padding:14px;box-sizing:border-box;border:1px solid #ccc;border-radius:10px">
+          placeholder="New category name">
 
 
         <button
           id="addCat"
           class="save"
-          type="button"
-          style="width:100%;margin-top:10px">
+          type="button">
 
           Add Category
 
@@ -1957,28 +1538,21 @@ async function adminCategories() {
 
         <div style="margin-top:15px">
 
-          ${(data || []).map(category => `
+          ${(data || []).map(x => `
 
             <div class="item">
 
               <div>
 
                 <b>
-
-                  ${escapeHtml(
-                    category.name
-                  )}
-
+                  ${escapeHtml(x.name)}
                 </b>
-
 
                 <small>
 
-                  ${
-                    category.active
-                      ? "Active"
-                      : "Inactive"
-                  }
+                  ${x.active
+                    ? "Active"
+                    : "Inactive"}
 
                 </small>
 
@@ -1997,8 +1571,7 @@ async function adminCategories() {
 
     modal
       .querySelector("#addCat")
-      .onclick =
-      async () => {
+      .onclick = async () => {
 
 
         const name =
@@ -2042,19 +1615,19 @@ async function adminCategories() {
         modal.remove();
 
 
-        await refreshAll();
-
-
         await adminCategories();
+
+
+        /* REFRESH INVENTORY */
+
+        await refreshAll();
 
       };
 
 
-  } catch (error) {
+  } catch (e) {
 
-    console.error(error);
-
-    alert(error.message);
+    alert(e.message);
 
   }
 
@@ -2079,11 +1652,8 @@ async function adminProducts() {
       );
 
 
-    if (productsResult.error) {
-
+    if (productsResult.error)
       throw productsResult.error;
-
-    }
 
 
     const categoriesResult =
@@ -2096,11 +1666,8 @@ async function adminProducts() {
       );
 
 
-    if (categoriesResult.error) {
-
+    if (categoriesResult.error)
       throw categoriesResult.error;
-
-    }
 
 
     const products =
@@ -2113,14 +1680,12 @@ async function adminProducts() {
 
     const categoryOptions =
       categories
-        .filter(category =>
-          category.active
-        )
-        .map(category => `
+        .filter(x => x.active)
+        .map(x => `
 
-          <option value="${category.id}">
+          <option value="${x.id}">
 
-            ${escapeHtml(category.name)}
+            ${escapeHtml(x.name)}
 
           </option>
 
@@ -2138,15 +1703,14 @@ async function adminProducts() {
         <button
           id="addProduct"
           class="save"
-          type="button"
-          style="width:100%;margin-bottom:15px">
+          type="button">
 
           + Add Product
 
         </button>
 
 
-        <div>
+        <div style="margin-top:15px">
 
           ${products.map(product => `
 
@@ -2155,11 +1719,7 @@ async function adminProducts() {
               <div>
 
                 <b>
-
-                  ${escapeHtml(
-                    product.name
-                  )}
-
+                  ${escapeHtml(product.name)}
                 </b>
 
 
@@ -2171,9 +1731,7 @@ async function adminProducts() {
                   )}
 
                   · Threshold:
-                  ${Number(
-                    product.threshold || 0
-                  )}
+                  ${product.threshold ?? 0}
 
                 </small>
 
@@ -2221,7 +1779,6 @@ async function adminProducts() {
 
           modal.remove();
 
-
           editProduct(
             button.dataset.id,
             products,
@@ -2233,11 +1790,9 @@ async function adminProducts() {
       });
 
 
-  } catch (error) {
+  } catch (e) {
 
-    console.error(error);
-
-    alert(error.message);
+    alert(e.message);
 
   }
 
@@ -2257,19 +1812,15 @@ function addProductForm(categoryOptions) {
 
       `
 
-      <label>Product Name</label>
-
       <input
         id="pn"
         placeholder="Product name">
 
 
-      <label>Category</label>
-
       <select id="pc">
 
         <option value="">
-          No category
+          Select category
         </option>
 
         ${categoryOptions}
@@ -2277,29 +1828,26 @@ function addProductForm(categoryOptions) {
       </select>
 
 
-      <label>Opening Stock</label>
-
       <input
         id="po"
         type="number"
         min="0"
-        value="0">
+        value="0"
+        placeholder="Opening stock">
 
-
-      <label>Low Stock Threshold</label>
 
       <input
         id="pt"
         type="number"
         min="0"
-        value="0">
+        value="0"
+        placeholder="Minimum stock threshold">
 
 
       <button
-        id="saveProduct"
+        id="saveP"
         class="save"
-        type="button"
-        style="width:100%;margin-top:15px">
+        type="button">
 
         Save Product
 
@@ -2311,44 +1859,52 @@ function addProductForm(categoryOptions) {
 
 
   modal
-    .querySelector("#saveProduct")
-    .onclick =
-    async () => {
+    .querySelector("#saveP")
+    .onclick = async () => {
 
 
       const name =
-        modal
-          .querySelector("#pn")
-          .value
-          .trim();
-
-
-      const category =
-        modal
-          .querySelector("#pc")
-          .value;
+        modal.querySelector("#pn")
+          .value.trim();
 
 
       const opening =
         Number(
-          modal
-            .querySelector("#po")
+          modal.querySelector("#po")
             .value || 0
         );
 
 
       const threshold =
         Number(
-          modal
-            .querySelector("#pt")
+          modal.querySelector("#pt")
             .value || 0
         );
+
+
+      const category =
+        modal.querySelector("#pc")
+          .value;
 
 
       if (!name) {
 
         alert(
-          "Product name required."
+          "Enter product name."
+        );
+
+        return;
+
+      }
+
+
+      if (
+        opening < 0 ||
+        threshold < 0
+      ) {
+
+        alert(
+          "Values cannot be negative."
         );
 
         return;
@@ -2357,57 +1913,55 @@ function addProductForm(categoryOptions) {
 
 
       const saveButton =
-        modal.querySelector(
-          "#saveProduct"
-        );
+        modal.querySelector("#saveP");
 
 
       saveButton.disabled = true;
 
-
-      try {
-
-        const { error } =
-          await db.rpc(
-            "admin_add_product",
-            {
-              p_code: code,
-              p_pin: pin,
-              p_name: name,
-
-              p_category_id:
-                category
-                  ? Number(category)
-                  : null,
-
-              p_opening: opening,
-
-              p_threshold: threshold
-            }
-          );
+      saveButton.textContent =
+        "Saving...";
 
 
-        if (error) throw error;
-
-
-        modal.remove();
-
-
-        await refreshAll();
-
-
-        alert(
-          "Product added successfully."
+      const { error } =
+        await db.rpc(
+          "admin_add_product",
+          {
+            p_code: code,
+            p_pin: pin,
+            p_name: name,
+            p_category_id:
+              category
+                ? Number(category)
+                : null,
+            p_opening: opening,
+            p_threshold: threshold
+          }
         );
 
 
-      } catch (error) {
+      if (error) {
 
         saveButton.disabled = false;
 
+        saveButton.textContent =
+          "Save Product";
+
         alert(error.message);
 
+        return;
+
       }
+
+
+      modal.remove();
+
+
+      await refreshAll();
+
+
+      alert(
+        "Product added successfully."
+      );
 
     };
 
@@ -2426,17 +1980,15 @@ async function editProduct(
 
   const product =
     products.find(
-      item =>
-        String(item.id) ===
+      x =>
+        String(x.id) ===
         String(id)
     );
 
 
   if (!product) {
 
-    alert(
-      "Product not found."
-    );
+    alert("Product not found.");
 
     return;
 
@@ -2450,16 +2002,10 @@ async function editProduct(
 
       `
 
-      <label>Product Name</label>
-
       <input
         id="en"
-        value="${escapeHtml(
-          product.name
-        )}">
+        value="${escapeHtml(product.name)}">
 
-
-      <label>Category</label>
 
       <select id="ec">
 
@@ -2472,18 +2018,12 @@ async function editProduct(
       </select>
 
 
-      <label>Low Stock Threshold</label>
-
       <input
         id="et"
         type="number"
         min="0"
-        value="${Number(
-          product.threshold || 0
-        )}">
+        value="${Number(product.threshold || 0)}">
 
-
-      <label>Status</label>
 
       <select id="ea">
 
@@ -2501,8 +2041,7 @@ async function editProduct(
       <button
         id="saveE"
         class="save"
-        type="button"
-        style="width:100%;margin-top:15px">
+        type="button">
 
         Save Changes
 
@@ -2515,37 +2054,29 @@ async function editProduct(
 
   if (product.category_id) {
 
-    modal
-      .querySelector("#ec")
-      .value =
+    modal.querySelector("#ec").value =
       product.category_id;
 
   }
 
 
-  modal
-    .querySelector("#ea")
-    .value =
+  modal.querySelector("#ea").value =
     String(product.active);
 
 
   modal
     .querySelector("#saveE")
-    .onclick =
-    async () => {
+    .onclick = async () => {
 
 
       const name =
-        modal
-          .querySelector("#en")
-          .value
-          .trim();
+        modal.querySelector("#en")
+          .value.trim();
 
 
       const threshold =
         Number(
-          modal
-            .querySelector("#et")
+          modal.querySelector("#et")
             .value || 0
         );
 
@@ -2568,60 +2099,48 @@ async function editProduct(
       saveButton.disabled = true;
 
 
-      try {
-
-        const { error } =
-          await db.rpc(
-            "admin_edit_product",
-            {
-              p_code: code,
-              p_pin: pin,
-              p_id: Number(id),
-
-              p_name: name,
-
-              p_category_id:
-                modal
-                  .querySelector("#ec")
-                  .value
-                  ? Number(
-                      modal
-                        .querySelector("#ec")
-                        .value
-                    )
-                  : null,
-
-              p_threshold: threshold,
-
-              p_active:
-                modal
-                  .querySelector("#ea")
-                  .value === "true"
-            }
-          );
-
-
-        if (error) throw error;
-
-
-        modal.remove();
-
-
-        await refreshAll();
-
-
-        alert(
-          "Product updated successfully."
+      const { error } =
+        await db.rpc(
+          "admin_edit_product",
+          {
+            p_code: code,
+            p_pin: pin,
+            p_id: Number(id),
+            p_name: name,
+            p_category_id:
+              modal.querySelector("#ec").value
+                ? Number(
+                    modal.querySelector("#ec").value
+                  )
+                : null,
+            p_threshold: threshold,
+            p_active:
+              modal.querySelector("#ea").value
+              === "true"
+          }
         );
 
 
-      } catch (error) {
+      if (error) {
 
         saveButton.disabled = false;
 
         alert(error.message);
 
+        return;
+
       }
+
+
+      modal.remove();
+
+
+      await refreshAll();
+
+
+      alert(
+        "Product updated successfully."
+      );
 
     };
 
@@ -2658,75 +2177,50 @@ async function adminTransactions() {
 
         <div class="transaction-list">
 
-          ${(data || []).length
-            ? (data || []).map(transaction => `
+          ${(data || []).map(x => `
 
-                <div class="item">
+            <div class="item">
 
-                  <div>
+              <div>
 
-                    <b>
-
-                      ${escapeHtml(
-                        transaction.product_name
-                      )}
-
-                    </b>
+                <b>
+                  ${escapeHtml(
+                    x.product_name
+                  )}
+                </b>
 
 
-                    <small>
+                <small>
 
-                      ${escapeHtml(
-                        transaction.movement
-                      )}
+                  ${escapeHtml(x.movement)}
+                  · Qty ${x.quantity}
 
-                      · Qty
-                      ${Number(
-                        transaction.quantity || 0
-                      )}
+                  <br>
 
-                      <br>
+                  ${x.created_at
+                    ? new Date(
+                        x.created_at
+                      ).toLocaleString()
+                    : ""
+                  }
 
-                      ${
-                        transaction.created_at
-                          ? new Date(
-                              transaction.created_at
-                            ).toLocaleString()
-                          : ""
-                      }
-
-                    </small>
-
-                  </div>
-
-
-                  <button
-                    class="editTx"
-                    data-id="${transaction.id}"
-                    type="button">
-
-                    Correct
-
-                  </button>
-
-                </div>
-
-              `).join("")
-
-            : `
-
-              <div class="item">
-
-                <div>
-
-                  <b>No transactions found</b>
-
-                </div>
+                </small>
 
               </div>
 
-            `
-          }
+
+              <button
+                class="editTx"
+                data-id="${x.id}"
+                type="button">
+
+                Correct
+
+              </button>
+
+            </div>
+
+          `).join("")}
 
         </div>
 
@@ -2739,26 +2233,18 @@ async function adminTransactions() {
       .querySelectorAll(".editTx")
       .forEach(button => {
 
-        button.onclick = () => {
-
-          modal.remove();
-
-
+        button.onclick = () =>
           correctTransaction(
             button.dataset.id,
             data || []
           );
 
-        };
-
       });
 
 
-  } catch (error) {
+  } catch (e) {
 
-    console.error(error);
-
-    alert(error.message);
+    alert(e.message);
 
   }
 
@@ -2776,8 +2262,8 @@ async function correctTransaction(
 
   const transaction =
     transactions.find(
-      item =>
-        String(item.id) ===
+      x =>
+        String(x.id) ===
         String(id)
     );
 
@@ -2803,17 +2289,13 @@ async function correctTransaction(
       <p>
 
         <b>
-
           ${escapeHtml(
             transaction.product_name
           )}
-
         </b>
 
       </p>
 
-
-      <label>Movement</label>
 
       <select id="txMovement">
 
@@ -2828,8 +2310,6 @@ async function correctTransaction(
       </select>
 
 
-      <label>Quantity</label>
-
       <input
         id="txQuantity"
         type="number"
@@ -2842,8 +2322,7 @@ async function correctTransaction(
       <button
         id="saveTx"
         class="save"
-        type="button"
-        style="width:100%;margin-top:15px">
+        type="button">
 
         Save Correction
 
@@ -2854,28 +2333,23 @@ async function correctTransaction(
     );
 
 
-  modal
-    .querySelector("#txMovement")
-    .value =
+  modal.querySelector("#txMovement").value =
     transaction.movement;
 
 
   modal
     .querySelector("#saveTx")
-    .onclick =
-    async () => {
+    .onclick = async () => {
 
 
       const movement =
-        modal
-          .querySelector("#txMovement")
+        modal.querySelector("#txMovement")
           .value;
 
 
       const quantity =
         Number(
-          modal
-            .querySelector("#txQuantity")
+          modal.querySelector("#txQuantity")
             .value
         );
 
@@ -2894,52 +2368,37 @@ async function correctTransaction(
       }
 
 
-      const saveButton =
-        modal.querySelector("#saveTx");
-
-
-      saveButton.disabled = true;
-
-
-      try {
-
-        const { error } =
-          await db.rpc(
-            "admin_correct_transaction",
-            {
-              p_code: code,
-              p_pin: pin,
-
-              p_id: Number(id),
-
-              p_movement: movement,
-
-              p_quantity: quantity
-            }
-          );
-
-
-        if (error) throw error;
-
-
-        modal.remove();
-
-
-        await refreshAll();
-
-
-        alert(
-          "Transaction corrected successfully."
+      const { error } =
+        await db.rpc(
+          "admin_correct_transaction",
+          {
+            p_code: code,
+            p_pin: pin,
+            p_id: Number(id),
+            p_movement: movement,
+            p_quantity: quantity
+          }
         );
 
 
-      } catch (error) {
-
-        saveButton.disabled = false;
+      if (error) {
 
         alert(error.message);
 
+        return;
+
       }
+
+
+      modal.remove();
+
+
+      await refreshAll();
+
+
+      alert(
+        "Transaction corrected successfully."
+      );
 
     };
 
@@ -2967,81 +2426,60 @@ async function adminWorkers() {
     if (error) throw error;
 
 
-    adminBox(
+    const modal =
+      adminBox(
 
-      "Workers",
+        "Workers",
 
-      `
+        `
 
-      <div>
+        <div>
 
-        ${(data || []).length
-          ? (data || []).map(person => `
-
-              <div class="item">
-
-                <div>
-
-                  <b>
-
-                    ${escapeHtml(
-                      person.name ||
-                      person.worker_name ||
-                      ""
-                    )}
-
-                  </b>
-
-
-                  <small>
-
-                    ${escapeHtml(
-                      person.access_code || ""
-                    )}
-
-                    ·
-
-                    ${
-                      person.active
-                        ? "Active"
-                        : "Inactive"
-                    }
-
-                  </small>
-
-                </div>
-
-              </div>
-
-            `).join("")
-
-          : `
+          ${(data || []).map(x => `
 
             <div class="item">
 
               <div>
 
-                <b>No workers found</b>
+                <b>
+                  ${escapeHtml(
+                    x.name ||
+                    x.worker_name ||
+                    ""
+                  )}
+                </b>
+
+
+                <small>
+
+                  ${escapeHtml(
+                    x.access_code || ""
+                  )}
+
+                  ·
+
+                  ${x.active
+                    ? "Active"
+                    : "Inactive"}
+
+                </small>
 
               </div>
 
             </div>
 
-          `
-        }
+          `).join("")}
 
-      </div>
+        </div>
 
-      `
+        `
 
-    );
+      );
 
 
-  } catch (error) {
+  } catch (e) {
 
-    console.error(error);
-
-    alert(error.message);
+    alert(e.message);
 
   }
 
@@ -3058,7 +2496,6 @@ async function pasteStockUpdate() {
 
 
   let workers = [];
-
   let products = [];
 
 
@@ -3074,11 +2511,8 @@ async function pasteStockUpdate() {
       );
 
 
-    if (workerResult.error) {
-
+    if (workerResult.error)
       throw workerResult.error;
-
-    }
 
 
     workers =
@@ -3095,22 +2529,17 @@ async function pasteStockUpdate() {
       );
 
 
-    if (productResult.error) {
-
+    if (productResult.error)
       throw productResult.error;
-
-    }
 
 
     products =
       productResult.data || [];
 
 
-  } catch (error) {
+  } catch (e) {
 
-    console.error(error);
-
-    alert(error.message);
+    alert(e.message);
 
     return;
 
@@ -3134,17 +2563,13 @@ async function pasteStockUpdate() {
       <textarea
         id="stockPasteText"
         rows="10"
-        placeholder="Paste worker stock message here..."
-        style="width:100%;padding:12px;box-sizing:border-box;border:1px solid #ccc;border-radius:10px;font-size:15px">
-
-      </textarea>
+        placeholder="Paste worker stock message here..."></textarea>
 
 
       <button
         id="previewStockPaste"
         class="save"
-        type="button"
-        style="width:100%;margin-top:10px">
+        type="button">
 
         Preview
 
@@ -3160,8 +2585,7 @@ async function pasteStockUpdate() {
 
   modal
     .querySelector("#previewStockPaste")
-    .onclick =
-    async () => {
+    .onclick = async () => {
 
 
       const message =
@@ -3216,59 +2640,46 @@ async function pasteStockUpdate() {
 
         if (!items.length) {
 
-          modal
-            .querySelector("#stockPastePreview")
-            .innerHTML = `
-
-              <p class="message">
-
-                No stock items could be read.
-
-              </p>
-
-            `;
-
-
-          previewButton.disabled = false;
-
-          previewButton.textContent =
-            "Preview";
-
-          return;
+          throw new Error(
+            "No stock items could be read."
+          );
 
         }
 
 
-        modal
-          .querySelector("#stockPastePreview")
-          .innerHTML = `
+        const preview =
+          modal.querySelector(
+            "#stockPastePreview"
+          );
+
+
+        preview.innerHTML = `
 
           <hr style="margin:20px 0">
 
 
-          <label>Worker</label>
+          <label>
 
-          <select
-            id="stockWorker"
-            style="width:100%;padding:12px;margin-bottom:15px">
+            Worker
+
+          </label>
+
+
+          <select id="stockWorker">
 
             <option value="">
               Select worker
             </option>
 
 
-            ${workers.map(person => `
+            ${workers.map(x => `
 
-              <option value="${
-                person.id ||
-                person.worker_id ||
-                person.user_id
-              }">
+              <option value="${x.id || x.user_id}">
 
                 ${escapeHtml(
-                  person.name ||
-                  person.worker_name ||
-                  person.access_code ||
+                  x.name ||
+                  x.worker_name ||
+                  x.access_code ||
                   ""
                 )}
 
@@ -3279,21 +2690,14 @@ async function pasteStockUpdate() {
           </select>
 
 
-          <h3>
-            Stock Preview
-          </h3>
+          <div style="margin-top:15px">
 
-
-          <div>
-
-            ${items.map((item, index) => {
-
+            ${items.map((x, index) => {
 
               const matched =
                 String(
-                  item.match_status || ""
-                )
-                  .toLowerCase() ===
+                  x.match_status || ""
+                ).toLowerCase() ===
                 "matched";
 
 
@@ -3301,90 +2705,62 @@ async function pasteStockUpdate() {
 
                 <div
                   class="item"
-                  style="margin-bottom:8px">
+                  style="display:block">
 
-                  <div>
+                  <b>
 
-                    <b>
+                    ${escapeHtml(
+                      x.product_name ||
+                      x.message_product ||
+                      "Unknown product"
+                    )}
 
-                      ${escapeHtml(
-                        item.message_product ||
-                        item.product_name ||
-                        ""
-                      )}
-
-                    </b>
+                  </b>
 
 
-                    <small>
+                  <small>
 
-                      Qty:
-                      ${Number(item.quantity || 0)}
+                    Quantity:
+                    ${x.quantity || 0}
 
-                      ${
-                        item.message_unit
-                          ? " " +
-                            escapeHtml(
-                              item.message_unit
-                            )
-                          : ""
-                      }
+                    ${escapeHtml(
+                      x.product_unit ||
+                      x.message_unit ||
+                      ""
+                    )}
 
-                    </small>
+                  </small>
 
 
-                    ${
-                      matched
-                        ? `
+                  ${!matched ? `
 
-                          <small>
+                    <select
+                      class="stockProductChoice"
+                      data-index="${index}">
 
-                            Matched:
-                            ${escapeHtml(
-                              item.product_name ||
-                              ""
-                            )}
-
-                          </small>
-
-                          `
-
-                        : `
-
-                          <select
-                            class="stockProductChoice"
-                            data-index="${index}"
-                            style="width:100%;padding:8px;margin-top:6px">
-
-                            <option value="">
-                              Select correct product
-                            </option>
+                      <option value="">
+                        Select correct product
+                      </option>
 
 
-                            ${products
-                              .filter(product =>
-                                product.active !== false
-                              )
-                              .map(product => `
+                      ${products
+                        .filter(
+                          p => p.active !== false
+                        )
+                        .map(p => `
 
-                                <option
-                                  value="${product.id}">
+                          <option value="${p.id}">
 
-                                  ${escapeHtml(
-                                    product.name
-                                  )}
+                            ${escapeHtml(p.name)}
 
-                                </option>
+                          </option>
 
-                              `)
-                              .join("")}
+                        `)
+                        .join("")}
 
-                          </select>
+                    </select>
 
-                          `
-                    }
-
-                  </div>
+                  ` : ""}
 
                 </div>
 
@@ -3398,8 +2774,7 @@ async function pasteStockUpdate() {
           <button
             id="confirmStockPaste"
             class="save"
-            type="button"
-            style="width:100%;margin-top:12px">
+            type="button">
 
             Confirm & Update Stock
 
@@ -3408,24 +2783,19 @@ async function pasteStockUpdate() {
 
           <p id="stockPasteMsg"></p>
 
-          `;
+        `;
 
 
-        const confirmButton =
-          modal.querySelector(
-            "#confirmStockPaste"
-          );
-
-
-        confirmButton.onclick =
-          async () => {
+        modal
+          .querySelector("#confirmStockPaste")
+          .onclick = async () => {
 
 
             const workerId =
               Number(
-                modal
-                  .querySelector("#stockWorker")
-                  .value
+                modal.querySelector(
+                  "#stockWorker"
+                ).value
               );
 
 
@@ -3444,32 +2814,35 @@ async function pasteStockUpdate() {
 
 
             for (
-              let index = 0;
-              index < items.length;
-              index++
+              let i = 0;
+              i < items.length;
+              i++
             ) {
 
               const item =
-                items[index];
+                items[i];
 
 
               let productId =
-                Number(item.product_id);
+                Number(
+                  item.product_id
+                );
 
 
-              const matched =
+              if (
+
                 String(
                   item.match_status || ""
-                )
-                  .toLowerCase() ===
-                "matched";
+                ).toLowerCase()
+                !== "matched"
 
-
-              if (!matched) {
+              ) {
 
                 const choice =
                   modal.querySelector(
-                    `.stockProductChoice[data-index="${index}"]`
+
+                    `.stockProductChoice[data-index="${i}"]`
+
                   );
 
 
@@ -3494,10 +2867,13 @@ async function pasteStockUpdate() {
 
 
               if (
+
                 !productId ||
+
                 !Number.isInteger(
                   Number(item.quantity)
                 )
+
               ) {
 
                 alert(
@@ -3527,13 +2903,20 @@ async function pasteStockUpdate() {
             }
 
 
+            const confirmButton =
+              modal.querySelector(
+                "#confirmStockPaste"
+              );
+
+
             const messageBox =
               modal.querySelector(
                 "#stockPasteMsg"
               );
 
 
-            confirmButton.disabled = true;
+            confirmButton.disabled =
+              true;
 
 
             confirmButton.textContent =
@@ -3552,15 +2935,9 @@ async function pasteStockUpdate() {
                   {
                     p_code: code,
                     p_pin: pin,
-
-                    p_worker_id:
-                      workerId,
-
-                    p_raw_message:
-                      message,
-
-                    p_items:
-                      finalItems
+                    p_worker_id: workerId,
+                    p_raw_message: message,
+                    p_items: finalItems
                   }
                 );
 
@@ -3579,10 +2956,7 @@ async function pasteStockUpdate() {
               );
 
 
-            } catch (error) {
-
-              console.error(error);
-
+            } catch (e) {
 
               confirmButton.disabled =
                 false;
@@ -3593,28 +2967,21 @@ async function pasteStockUpdate() {
 
 
               messageBox.textContent =
-                error.message;
+                e.message;
 
             }
 
           };
 
 
-        previewButton.disabled = false;
+      } catch (e) {
 
-        previewButton.textContent =
-          "Preview";
-
-
-      } catch (error) {
-
-        console.error(error);
+        alert(e.message);
 
 
-        alert(error.message);
+        previewButton.disabled =
+          false;
 
-
-        previewButton.disabled = false;
 
         previewButton.textContent =
           "Preview";
@@ -3627,7 +2994,7 @@ async function pasteStockUpdate() {
 
 
 /* =========================================================
-   ADMIN BUTTON EVENTS
+   ADMIN BUTTONS
 ========================================================= */
 
 if ($("manageProducts")) {
@@ -3671,127 +3038,12 @@ if ($("pasteStockUpdate")) {
 
 
 /* =========================================================
-   ESCAPE KEY
-
-   Closes the top-most popup only.
-========================================================= */
-
-document.addEventListener(
-  "keydown",
-  event => {
-
-    if (event.key === "Escape") {
-
-      if (closeTopModal()) {
-
-        event.preventDefault();
-
-      }
-
-    }
-
-  }
-);
-
-
-/* =========================================================
-   BROWSER / ANDROID BACK BUTTON
-
-   Priority:
-   1. Close open popup
-   2. Close admin inventory
-   3. Keep user on dashboard
-========================================================= */
-
-history.replaceState(
-  { jmp: true },
-  "",
-  location.href
-);
-
-
-window.addEventListener(
-  "popstate",
-  () => {
-
-
-    /*
-       OPEN MODAL
-    */
-
-    if (closeTopModal()) {
-
-      history.pushState(
-        { jmp: true },
-        "",
-        location.href
-      );
-
-      return;
-
-    }
-
-
-    /*
-       ADMIN INVENTORY PANEL
-    */
-
-    if (
-      !$("adminInventoryPanel")
-        ?.classList.contains("hidden")
-    ) {
-
-      closeAdminInventory();
-
-
-      history.pushState(
-        { jmp: true },
-        "",
-        location.href
-      );
-
-      return;
-
-    }
-
-
-    /*
-       Keep application stable
-       on dashboard.
-    */
-
-    history.pushState(
-      { jmp: true },
-      "",
-      location.href
-    );
-
-  }
-);
-
-
-/* =========================================================
-   RESTORE LOGIN SCREEN SAFELY
-
-   We intentionally do not automatically restore
-   the login because your RPC functions require
-   the access code and PIN for authenticated calls.
-
-   This prevents the old issue where the app
-   visually appeared logged in but inventory
-   calls failed or returned stale data.
+   RESTORE LOGIN SESSION
 ========================================================= */
 
 window.addEventListener(
   "DOMContentLoaded",
   () => {
-
-    /*
-       Start clean on login screen.
-
-       Existing saved worker data is retained only
-       as non-sensitive session reference.
-    */
 
     const saved =
       localStorage.getItem(
@@ -3799,37 +3051,14 @@ window.addEventListener(
       );
 
 
-    if (saved) {
-
-      try {
-
-        worker =
-          JSON.parse(saved);
-
-      } catch (error) {
-
-        localStorage.removeItem(
-          "jmp_worker"
-        );
-
-      }
-
-    }
-
-
     /*
-       Do not auto-open home screen.
+      We intentionally do NOT auto-login
+      because the access code and PIN
+      are required by several RPC functions.
 
-       User must sign in again so code/pin
-       are available for RPC calls.
+      Keeping this behaviour avoids
+      broken inventory calls after refresh.
     */
-
-    worker = null;
 
   }
 );
-
-
-/* =========================================================
-   END OF JMP ENT STOCKS APPLICATION
-========================================================= */
