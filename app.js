@@ -63,29 +63,25 @@ async function refreshAll() {
 
     if (isAdmin()) {
 
-      const inventoryPanel = $("adminInventoryPanel");
-
-      if (
-        inventoryPanel &&
-        !inventoryPanel.classList.contains("hidden")
-      ) {
-        await loadAdminInventory();
-      }
+      await loadAdminInventory();
 
     } else {
 
-      const workerPanel = $("workerInventoryPanel");
-
-      if (
-        workerPanel &&
-        !workerPanel.classList.contains("hidden")
-      ) {
-        await loadWorkerInventory();
-      }
+      await loadWorkerInventory();
 
     }
 
-    await loadSummary();
+
+    /*
+     * Refresh summary/dashboard data too
+     */
+
+    if (typeof loadSummary === "function") {
+
+      await loadSummary();
+
+    }
+
 
   } catch (e) {
 
