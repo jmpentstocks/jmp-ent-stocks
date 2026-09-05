@@ -107,26 +107,52 @@ async function getProducts(){
 ========================= */
 
 async function getCategoryInventory(){
-  let{data,error}=await db.rpc("worker_inventory_categories",{
-    p_access_code:code,
-    p_pin:pin
-  });
+
+  const {data,error}=await db.rpc(
+    "admin_inventory_by_location",
+    {
+      p_code:code,
+      p_pin:pin
+    }
+  );
 
   if(error)throw error;
 
-  if(!data)return[];
+  const inventory=data||[];
 
-  if(typeof data==="string"){
-    try{
-      data=JSON.parse(data);
-    }catch(e){
-      return[];
+  const categoryMap={};
+
+  inventory.forEach(item=>{
+
+    const categoryId=item.category_id;
+
+    if(!categoryId)return;
+
+    if(!categoryMap[categoryId]){
+
+      categoryMap[categoryId]={
+        category_id:item.category_id,
+        category_name:item.category_name,
+        products:[]
+      };
+
     }
-  }
 
-  return Array.isArray(data)?data:[];
+    categoryMap[categoryId].products.push({
+
+      product_id:item.product_id,
+      name:item.product_name,
+      current_stock:Number(item.consolidated_stock||0),
+      threshold:Number(item.threshold||0),
+      unit:item.unit||""
+
+    });
+
+  });
+
+  return Object.values(categoryMap);
+
 }
-
 
 /* =========================
    INVENTORY VIEW SWITCH
