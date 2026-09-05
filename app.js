@@ -1915,10 +1915,6 @@ async function loadAdminInventory(){
 
     const {data,error} = await db.rpc(
       "admin_inventory_by_location",
-      {
-        p_code: code,
-        p_pin: pin
-      }
     );
 
     if(error) throw error;
