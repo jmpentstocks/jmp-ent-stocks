@@ -1,739 +1,846 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-
 <head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#35313d">
+<title>JMP Ent Stocks</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="stylesheet" href="styles.css">
 
-  <meta charset="UTF-8">
+<style>
+.hidden{display:none!important}
 
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0">
+.screen{
+  max-width:700px;
+  margin:auto;
+  padding:25px 18px;
+}
 
-  <title>Inventory Management</title>
+.brand{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
 
-  <link
-    rel="stylesheet"
-    href="styles.css">
+.brand-logo{
+  width:100%;
+  max-width:360px;
+  height:auto;
+  display:block;
+  margin:0 auto;
+}
 
+.brand h1{
+  margin:0;
+}
+
+.brand p,.topbar p{
+  margin:5px 0;
+  color:#777;
+}
+
+.subtitle{
+  color:#777;
+}
+
+.loginbox,.panel{
+  background:#fff;
+  border:1px solid #ddd;
+  border-radius:20px;
+  padding:20px;
+  margin-top:18px;
+}
+
+.label{
+  display:block;
+  font-size:12px;
+  font-weight:bold;
+  color:#777;
+  margin:15px 0 7px;
+}
+
+.loginbox input,.qtybox input{
+  width:100%;
+  padding:14px;
+  border:1px solid #ccc;
+  border-radius:10px;
+  font-size:17px;
+  box-sizing:border-box;
+}
+
+.primary,.action,.ghost,.product,.save,.cancel{
+  border-radius:12px;
+  padding:14px;
+  font-size:16px;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+.primary,.save{
+  background:#35313d;
+  color:#fff;
+  border:0;
+}
+
+.primary{
+  width:100%;
+  margin-top:12px;
+}
+
+.message{
+  color:#b44;
+}
+
+.topbar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.ghost{
+  background:#fff;
+  border:1px solid #ccc;
+}
+
+.actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin:20px 0;
+}
+
+.action{
+  background:#fff;
+  border:1px solid #35313d;
+  min-height:70px;
+}
+
+.inventory{
+  display:flex;
+  flex-direction:column;
+  gap:9px;
+}
+
+.item{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:14px;
+  border:1px solid #ddd;
+  border-radius:13px;
+}
+
+.item b{
+  display:block;
+}
+
+.item small{
+  display:block;
+  color:#777;
+  margin-top:4px;
+}
+
+.qty{
+  font-size:20px;
+  font-weight:bold;
+}
+
+.badge{
+  margin-left:8px;
+  padding:5px 8px;
+  border-radius:7px;
+  background:#e8f5e9;
+  color:#28763a;
+  font-size:11px;
+}
+
+.low{
+  background:#fff0df;
+  color:#b86600;
+}
+
+.modal{
+  position:fixed;
+  inset:0;
+  background:#0008;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:15px;
+  z-index:99;
+}
+
+.modalbox{
+  background:#fff;
+  border-radius:20px;
+  padding:20px;
+  width:100%;
+  max-width:480px;
+  max-height:90vh;
+  overflow:auto;
+}
+
+.product{
+  display:flex;
+  justify-content:space-between;
+  width:100%;
+  margin:7px 0;
+  background:#fff;
+  border:1px solid #ddd;
+  text-align:left;
+}
+
+.row{
+  display:flex;
+  gap:10px;
+  margin-top:10px;
+}
+
+.row>*{
+  flex:1;
+}
+
+/* Company logo */
+.company-logo{
+  width:100%;
+  max-width:300px;
+  height:auto;
+  display:block;
+  margin:0 auto 22px;
+}
+
+/* Dashboard logo area */
+.dashboard-logo{
+  background:#fff;
+  border:1px solid #e5ddd5;
+  border-radius:20px;
+  padding:6px 14px;
+  margin-bottom:18px;
+}
+
+@media(max-width:500px){
+  .screen{
+    padding:20px 14px;
+  }
+
+  .company-logo{
+    max-width:100%;
+    margin-bottom:18px;
+  }
+
+  .dashboard-logo{
+    padding:10px;
+    margin-bottom:14px;
+  }
+
+  .topbar{
+    gap:10px;
+  }
+
+  .topbar h1{
+    font-size:22px;
+  }
+
+  .topbar p{
+    font-size:14px;
+  }
+
+  .actions{
+    gap:9px;
+    margin:15px 0;
+  }
+
+  .action{
+    min-height:62px;
+    padding:11px 8px;
+    font-size:15px;
+  }
+}
+/* =========================
+   ADMIN INVENTORY DASHBOARD
+========================= */
+
+.inventory-label{
+  font-size:12px;
+  font-weight:bold;
+  color:#777;
+  margin:20px 0 8px;
+  letter-spacing:.5px;
+}
+
+.stock-tabs{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  border:1px solid #35313d;
+  border-radius:12px;
+  overflow:hidden;
+}
+
+.stock-tab{
+  background:#fff;
+  border:0;
+  border-right:1px solid #ddd;
+  padding:12px 6px;
+  font-size:14px;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+.stock-tab:last-child{
+  border-right:0;
+}
+
+.stock-tab.active{
+  background:#35313d;
+  color:#fff;
+}
+
+.category-tabs{
+  display:flex;
+  gap:8px;
+  overflow-x:auto;
+  padding-bottom:5px;
+  scrollbar-width:none;
+}
+
+.category-tabs::-webkit-scrollbar{
+  display:none;
+}
+
+.category-tab{
+  flex:none;
+  padding:9px 15px;
+  border-radius:20px;
+  border:1px solid #ccc;
+  background:#fff;
+  font-size:14px;
+  font-weight:bold;
+  cursor:pointer;
+  white-space:nowrap;
+}
+
+.category-tab.active{
+  background:#35313d;
+  color:#fff;
+  border-color:#35313d;
+}
+
+.inventory-search{
+  width:100%;
+  box-sizing:border-box;
+  padding:13px 14px;
+  border:1px solid #ccc;
+  border-radius:12px;
+  font-size:15px;
+  margin-top:15px;
+}
+
+.admin-product-card{
+  padding:15px;
+  border:1px solid #ddd;
+  border-radius:14px;
+  background:#fff;
+  margin-bottom:9px;
+}
+
+.admin-product-name{
+  font-size:16px;
+  font-weight:bold;
+}
+
+.admin-product-stock{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-top:10px;
+  color:#777;
+  font-size:13px;
+}
+
+.admin-product-qty{
+  font-size:19px;
+  font-weight:bold;
+  color:#222;
+}
+
+  
+/* =========================
+   ADMIN DASHBOARD
+========================= */
+
+.admin-dashboard-header{
+  margin-bottom:20px;
+}
+
+.admin-dashboard-header h2{
+  margin:0;
+}
+
+.admin-subtitle{
+  margin:6px 0 0;
+  color:#777;
+  font-size:14px;
+}
+
+.admin-quick-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin-bottom:24px;
+}
+
+.admin-quick-btn{
+  background:#fff;
+  border:1px solid #ddd;
+  border-radius:14px;
+  padding:16px 12px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  text-align:left;
+  min-height:78px;
+  cursor:pointer;
+}
+
+.admin-quick-btn:active{
+  transform:scale(.98);
+}
+
+.admin-quick-icon{
+  font-size:25px;
+  width:34px;
+  text-align:center;
+}
+
+.admin-quick-btn b{
+  display:block;
+  font-size:15px;
+  color:#222;
+  margin-bottom:4px;
+}
+
+.admin-quick-btn small{
+  display:block;
+  font-size:12px;
+  color:#777;
+}
+
+.admin-stock-tools{
+  border-top:1px solid #e5e5e5;
+  padding-top:18px;
+}
+
+.admin-stock-tools h3{
+  margin:0 0 12px;
+  font-size:17px;
+}
+
+.admin-stock-update-btn{
+  width:100%;
+  border:none;
+  border-radius:14px;
+  padding:16px;
+  background:#35313d;
+  color:white;
+  font-size:16px;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+.admin-stock-update-btn small{
+  display:block;
+  margin-top:5px;
+  font-size:12px;
+  font-weight:normal;
+  opacity:.8;
+}
+</style>
 </head>
-
 
 <body>
 
+<main id="app">
 
-<!-- =====================================================
-     LOGIN SCREEN
-===================================================== -->
+<section id="loginScreen" class="screen">
 
-<section
-  id="loginScreen"
-  class="login-screen">
+  <div class="dashboard-logo">
+    <img
+      src="./JMP%20Logo.jpg"
+      class="company-logo"
+      alt="JMP Parekh Enterprises">
+  </div>
 
-  <div class="login-card">
-
-    <div class="login-logo">
-
-      <h1>Inventory</h1>
-
-      <p>
-        Stock Management System
-      </p>
-
+  <div class="brand">
+    <div>
+      <h1>JMP Ent Stocks</h1>
+      <p>Inventory Management</p>
     </div>
+  </div>
 
+  <p class="subtitle">Sign in to continue.</p>
 
-    <div class="login-form">
+  <div class="loginbox">
 
-      <label>
-        Access Code
-      </label>
+    <label class="label">ACCESS CODE</label>
+    <input
+      id="accessCode"
+      autocomplete="username"
+      placeholder="Enter access code">
 
-      <input
-        id="accessCode"
-        type="text"
-        autocomplete="username"
-        placeholder="Enter access code">
+    <label class="label">PASSWORD</label>
+    <input
+      id="pin"
+      type="password"
+      autocomplete="current-password"
+      placeholder="Enter password">
 
+    <button
+      id="signIn"
+      class="primary"
+      type="button">
+      Sign In
+    </button>
 
-      <label>
-        Password
-      </label>
-
-      <input
-        id="pin"
-        type="password"
-        autocomplete="current-password"
-        placeholder="Enter password">
-
-
-      <button
-        id="signIn"
-        class="primary-btn"
-        type="button">
-
-        Sign In
-
-      </button>
-
-
-      <p
-        id="loginMsg"
-        class="login-message">
-      </p>
-
-    </div>
+    <p id="loginMsg" class="message"></p>
 
   </div>
 
 </section>
 
 
+<section id="homeScreen" class="screen hidden">
 
-<!-- =====================================================
-     MAIN APPLICATION
-===================================================== -->
+  <div class="dashboard-logo">
+    <img
+      src="./JMP%20Logo.jpg"
+      class="company-logo"
+      alt="JMP Parekh Enterprises">
+  </div>
 
-<section
-  id="homeScreen"
-  class="hidden">
+  <header class="topbar">
+    <div>
+      <h1>JMP Ent Stocks</h1>
+      <p id="welcome"></p>
+    </div>
+
+    <button
+      id="logout"
+      class="ghost"
+      type="button">
+      Logout
+    </button>
+  </header>
 
 
-  <!-- ===================================================
-       HEADER
-  ==================================================== -->
+<!-- MAIN DASHBOARD ACTIONS -->
 
-  <header class="app-header">
+<div class="actions">
 
-    <div class="header-left">
+  <!-- INVENTORY -->
 
-      <h1>
-        Inventory Management
-      </h1>
+  <button
+    id="inventory"
+    class="action inventory-main-btn"
+    type="button">
 
-      <p id="welcome">
-        Welcome
+    📊 Inventory
+
+  </button>
+
+
+  <!-- STOCK OPERATIONS -->
+
+  <button
+    id="stockIn"
+    class="action"
+    type="button">
+
+    📥 Stock IN
+
+  </button>
+
+
+  <button
+    id="stockOut"
+    class="action"
+    type="button">
+
+    📤 Stock OUT
+
+  </button>
+
+
+</div>
+
+
+<!-- PASTE STOCK UPDATE -->
+
+<div class="dashboard-stock-update">
+
+  <button
+    id="pasteStockUpdate"
+    class="admin-stock-update-btn"
+    type="button">
+
+    📋 Paste Stock Update
+
+    <small>
+      Update physical stock from worker message
+    </small>
+
+  </button>
+
+</div>
+
+
+<!-- ADMIN CONTROLS -->
+
+<div id="adminActions" class="panel hidden">
+
+  <div class="admin-dashboard-header">
+
+    <div>
+
+      <h2>Admin Controls</h2>
+
+      <p class="admin-subtitle">
+        Manage products, categories, workers and stock history
       </p>
 
     </div>
 
+  </div>
+
+
+  <div class="admin-quick-actions">
+
+
+    <!-- PRODUCTS -->
 
     <button
-      id="logout"
-      class="logout-btn"
+      id="manageProducts"
+      class="admin-quick-btn"
       type="button">
 
-      Logout
+      <span class="admin-quick-icon">
+        📦
+      </span>
+
+      <span>
+
+        <b>Products</b>
+
+        <small>
+          Manage products
+        </small>
+
+      </span>
 
     </button>
 
-  </header>
 
+    <!-- CATEGORIES -->
 
+    <button
+      id="manageCategories"
+      class="admin-quick-btn"
+      type="button">
 
-  <main class="app-main">
+      <span class="admin-quick-icon">
+        📁
+      </span>
 
+      <span>
 
-    <!-- =================================================
-         MAIN DASHBOARD
-    ================================================== -->
+        <b>Categories</b>
 
-    <section
-      id="dashboard"
-      class="dashboard">
+        <small>
+          Manage categories
+        </small>
 
+      </span>
 
+    </button>
 
-      <!-- ===============================================
-           PRIMARY ACTIONS
-      ================================================ -->
 
-      <div class="dashboard-section">
+    <!-- WORKERS -->
 
-        <h2 class="section-title">
+    <button
+      id="workers"
+      class="admin-quick-btn"
+      type="button">
 
-          Stock Management
+      <span class="admin-quick-icon">
+        👥
+      </span>
 
-        </h2>
+      <span>
 
+        <b>Workers</b>
 
-        <!-- INVENTORY -->
+        <small>
+          Manage workers
+        </small>
 
-        <button
-          id="inventory"
-          class="dashboard-card inventory-card"
-          type="button">
+      </span>
 
-          <span class="dashboard-icon">
+    </button>
 
-            📊
 
-          </span>
+    <!-- TRANSACTIONS -->
 
+    <button
+      id="transactions"
+      class="admin-quick-btn"
+      type="button">
 
-          <span class="dashboard-content">
+      <span class="admin-quick-icon">
+        📋
+      </span>
 
-            <b>
-              Inventory
-            </b>
+      <span>
 
-            <small>
-              View current stock
-            </small>
+        <b>Transactions</b>
 
-          </span>
+        <small>
+          View stock history
+        </small>
 
+      </span>
 
-          <span class="dashboard-arrow">
+    </button>
 
-            › 
 
-          </span>
+  </div>
 
-        </button>
+</div>
 
 
+<!-- NORMAL / WORKER INVENTORY -->
 
-        <!-- STOCK IN -->
+<div
+  id="workerInventoryPanel"
+  class="panel hidden">
 
-        <div class="two-column-actions">
+  <h2>Inventory</h2>
 
-          <button
-            id="stockIn"
-            class="dashboard-card compact-card"
-            type="button">
+  <div
+    id="inventoryList"
+    class="inventory">
 
-            <span class="dashboard-icon">
+    Loading...
 
-              📥
+  </div>
 
-            </span>
+</div>
 
 
-            <span class="dashboard-content">
+<!-- ADMIN INVENTORY -->
 
-              <b>
-                Stock IN
-              </b>
+<div
+  id="adminInventoryPanel"
+  class="panel hidden">
 
-              <small>
-                Add stock
-              </small>
+  <h2>Inventory</h2>
 
-            </span>
 
-          </button>
+  <!-- STOCK VIEW -->
 
+  <p class="inventory-label">
+    STOCK VIEW
+  </p>
 
 
-          <!-- STOCK OUT -->
+  <div class="stock-tabs">
 
-          <button
-            id="stockOut"
-            class="dashboard-card compact-card"
-            type="button">
 
-            <span class="dashboard-icon">
+    <button
+      class="stock-tab"
+      data-stock-view="kumar"
+      type="button">
 
-              📤
+      Kumar
 
-            </span>
+    </button>
 
 
-            <span class="dashboard-content">
+    <button
+      class="stock-tab"
+      data-stock-view="office"
+      type="button">
 
-              <b>
-                Stock OUT
-              </b>
+      Office
 
-              <small>
-                Remove stock
-              </small>
+    </button>
 
-            </span>
 
-          </button>
+    <button
+      class="stock-tab active"
+      data-stock-view="consolidated"
+      type="button">
 
-        </div>
+      Consolidated
 
+    </button>
 
-      </div>
 
+  </div>
 
 
-      <!-- ===============================================
-           ADMIN CONTROLS
-      ================================================ -->
+  <!-- CATEGORY FILTER -->
 
-      <section
-        id="adminActions"
-        class="admin-section hidden">
+  <p class="inventory-label">
+    CATEGORIES
+  </p>
 
 
-        <div class="section-heading">
+  <div
+    id="adminCategoryTabs"
+    class="category-tabs">
 
-          <div>
+    Loading categories...
 
-            <h2>
+  </div>
 
-              Admin Controls
 
-            </h2>
+  <!-- PRODUCT SEARCH -->
 
-            <p>
+  <input
+    id="adminProductSearch"
+    class="inventory-search"
+    type="search"
+    placeholder="🔍 Search product...">
 
-              Manage products, categories and system data
 
-            </p>
+  <!-- PRODUCT LIST -->
 
-          </div>
+  <div
+    id="adminInventoryList"
+    class="inventory"
+    style="margin-top:15px">
 
-        </div>
+    Loading...
 
+  </div>
 
 
-        <!-- PASTE STOCK UPDATE -->
-
-        <button
-          id="pasteStockUpdate"
-          class="paste-stock-card"
-          type="button">
-
-          <span class="dashboard-icon">
-
-            📋
-
-          </span>
-
-
-          <span class="dashboard-content">
-
-            <b>
-
-              Paste Stock Update
-
-            </b>
-
-            <small>
-
-              Update physical stock from worker message
-
-            </small>
-
-          </span>
-
-
-          <span class="dashboard-arrow">
-
-            ›
-
-          </span>
-
-        </button>
-
-
-
-        <!-- ADMIN GRID -->
-
-        <div class="admin-grid">
-
-
-          <!-- PRODUCTS -->
-
-          <button
-            id="manageProducts"
-            class="admin-control-card"
-            type="button">
-
-            <span class="admin-icon">
-
-              📦
-
-            </span>
-
-            <b>
-
-              Products
-
-            </b>
-
-            <small>
-
-              Manage products
-
-            </small>
-
-          </button>
-
-
-
-          <!-- CATEGORIES -->
-
-          <button
-            id="manageCategories"
-            class="admin-control-card"
-            type="button">
-
-            <span class="admin-icon">
-
-              📁
-
-            </span>
-
-            <b>
-
-              Categories
-
-            </b>
-
-            <small>
-
-              Manage categories
-
-            </small>
-
-          </button>
-
-
-
-          <!-- WORKERS -->
-
-          <button
-            id="workers"
-            class="admin-control-card"
-            type="button">
-
-            <span class="admin-icon">
-
-              👥
-
-            </span>
-
-            <b>
-
-              Workers
-
-            </b>
-
-            <small>
-
-              Manage workers
-
-            </small>
-
-          </button>
-
-
-
-          <!-- TRANSACTIONS -->
-
-          <button
-            id="transactions"
-            class="admin-control-card"
-            type="button">
-
-            <span class="admin-icon">
-
-              📋
-
-            </span>
-
-            <b>
-
-              Transactions
-
-            </b>
-
-            <small>
-
-              Stock history
-
-            </small>
-
-          </button>
-
-
-        </div>
-
-
-      </section>
-
-
-
-    </section>
-    <!-- END DASHBOARD -->
-
-
-
-
-    <!-- =================================================
-         ADMIN INVENTORY PANEL
-    ================================================== -->
-
-    <section
-      id="adminInventoryPanel"
-      class="inventory-panel hidden">
-
-
-      <!-- BACK / HEADER -->
-
-      <div class="inventory-header">
-
-        <div>
-
-          <button
-            id="backToDashboard"
-            class="back-btn"
-            type="button">
-
-            ← Dashboard
-
-          </button>
-
-
-          <h2>
-
-            Inventory
-
-          </h2>
-
-          <p>
-
-            Current stock across all locations
-
-          </p>
-
-        </div>
-
-      </div>
-
-
-
-      <!-- ===============================================
-           STOCK LOCATION VIEW
-      ================================================ -->
-
-      <div class="inventory-section">
-
-        <p class="inventory-label">
-
-          STOCK VIEW
-
-        </p>
-
-
-        <div class="stock-tabs">
-
-
-          <button
-            class="stock-tab"
-            data-stock-view="kumar"
-            type="button">
-
-            Kumar
-
-          </button>
-
-
-          <button
-            class="stock-tab"
-            data-stock-view="office"
-            type="button">
-
-            Office
-
-          </button>
-
-
-          <button
-            class="stock-tab active"
-            data-stock-view="consolidated"
-            type="button">
-
-            Consolidated
-
-          </button>
-
-
-        </div>
-
-      </div>
-
-
-
-      <!-- ===============================================
-           CATEGORY FILTER
-      ================================================ -->
-
-      <div class="inventory-section">
-
-        <p class="inventory-label">
-
-          CATEGORIES
-
-        </p>
-
-
-        <div
-          id="adminCategoryTabs"
-          class="category-tabs">
-
-          Loading categories...
-
-        </div>
-
-      </div>
-
-
-
-      <!-- ===============================================
-           SEARCH
-      ================================================ -->
-
-      <div class="inventory-section">
-
-        <input
-          id="adminProductSearch"
-          class="inventory-search"
-          type="search"
-          placeholder="🔍 Search product...">
-
-      </div>
-
-
-
-      <!-- ===============================================
-           PRODUCT LIST
-      ================================================ -->
-
-      <div
-        id="adminInventoryList"
-        class="inventory-list">
-
-        Loading inventory...
-
-      </div>
-
-
-    </section>
-    <!-- END ADMIN INVENTORY -->
-
-
-
-
-    <!-- =================================================
-         WORKER INVENTORY PANEL
-    ================================================== -->
-
-    <section
-      id="workerInventoryPanel"
-      class="inventory-panel hidden">
-
-
-      <div class="inventory-header">
-
-        <div>
-
-          <h2>
-
-            Inventory
-
-          </h2>
-
-          <p>
-
-            Current available stock
-
-          </p>
-
-        </div>
-
-      </div>
-
-
-
-      <div
-        id="inventoryList"
-        class="inventory-list">
-
-        Loading inventory...
-
-      </div>
-
-
-    </section>
-    <!-- END WORKER INVENTORY -->
-
-
-
-
-    <!-- =================================================
-         OPTIONAL STOCK SUMMARY
-         
-         app.js checks for summaryList safely.
-         This section is included so the existing
-         worker_stock_summary RPC can still display.
-    ================================================== -->
-
-    <section
-      id="summaryPanel"
-      class="summary-panel hidden">
-
-      <h2>
-
-        Stock Summary
-
-      </h2>
-
-
-      <div
-        id="summaryList"
-        class="inventory-list">
-
-      </div>
-
-    </section>
-
-
-  </main>
+</div>
 
 
 </section>
-<!-- END HOME SCREEN -->
 
+</main>
 
-
-
-<!-- =====================================================
-     SUPABASE
-===================================================== -->
+<script>
+window.SUPABASE_URL="https://dpigulqijhahslcprjmy.supabase.co";
+window.SUPABASE_PUBLISHABLE_KEY="sb_publishable_D8ajYjYqgQWDmqJx60ZjJQ_LvNI45A6";
+</script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-
-
-<!-- =====================================================
-     CONFIG
-
-     IMPORTANT:
-     Your existing config.js must remain in your project.
-
-     It should contain:
-
-     window.SUPABASE_URL = "...";
-     window.SUPABASE_PUBLISHABLE_KEY = "...";
-===================================================== -->
-
-<script src="config.js"></script>
-
-
-
-<!-- =====================================================
-     APPLICATION
-===================================================== -->
-
-<script src="app.js"></script>
-
+<script src="app.js?v=6"></script>
 
 </body>
-
 </html>
