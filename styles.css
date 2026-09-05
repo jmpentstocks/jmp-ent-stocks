@@ -1,496 +1,1009 @@
-*{box-sizing:border-box}
+/* =========================================================
+   RESET + BASE
+========================================================= */
 
-body{
-  margin:0;
-  background:#f8f3ed;
-  color:#37323d;
-  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+* {
+  box-sizing: border-box;
 }
 
-button,input,select{
-  font:inherit;
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
 }
 
-.screen{
-  max-width:720px;
-  margin:auto;
-  min-height:100vh;
-  padding:28px 22px 48px;
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  background: #f4f6f8;
+  color: #1f2937;
 }
 
-.hidden{
-  display:none!important;
-}
-
-/* ---------- BRAND / LOGIN ---------- */
-
-.brand{
-  display:flex;
-  align-items:center;
-  gap:16px;
-  margin:32px 0 20px;
-}
-
-.brand-mark{
-  width:74px;
-  height:74px;
-  border-radius:50%;
-  background:#37323d;
-  color:#fff;
-  display:grid;
-  place-items:center;
-  font-size:34px;
-  font-weight:800;
-  flex:none;
-}
-
-.brand h1{
-  margin:0;
-  font-size:30px;
-  letter-spacing:-.8px;
-}
-
-.brand p,
-.topbar p{
-  margin:4px 0;
-  color:#918894;
-}
-
-.subtitle{
-  font-size:18px;
-  color:#918894;
-  margin:0 0 34px;
-}
-
-.loginbox,
-.panel{
-  background:#fff;
-  border:1px solid #e5ddd5;
-  border-radius:20px;
-  padding:22px;
-  margin-top:18px;
-}
-
-.label{
-  display:block;
-  font-size:13px;
-  font-weight:800;
-  letter-spacing:.08em;
-  color:#847b87;
-  margin:20px 0 10px;
-}
-
-/* ---------- LOGIN INPUTS ---------- */
-
+button,
 input,
-.loginbox input,
-.qtybox input{
-  width:100%;
-  height:60px;
-  border:1px solid #e5ddd5;
-  border-radius:30px;
-  background:#fff;
-  padding:0 20px;
-  font-size:20px;
+select,
+textarea {
+  font: inherit;
 }
 
-/* IMPORTANT:
-   Normal access code / password must NOT have
-   large character spacing. */
-
-#accessCode,
-#pin{
-  letter-spacing:normal;
-  text-align:left;
+button {
+  cursor: pointer;
 }
 
-/* Password should also remain normally spaced */
-#pin{
-  letter-spacing:normal;
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
-.primary{
-  width:100%;
-  min-height:60px;
-  border:0;
-  border-radius:30px;
-  background:#37323d;
-  color:#fff;
-  font-weight:800;
-  margin-top:24px;
-  cursor:pointer;
+.hidden {
+  display: none !important;
 }
 
-.primary:disabled{
-  opacity:.65;
+
+/* =========================================================
+   LOGIN
+========================================================= */
+
+.login-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: linear-gradient(
+    135deg,
+    #0f4c81,
+    #1d6fa5
+  );
 }
 
-.message{
-  text-align:center;
-  min-height:24px;
-  color:#a33;
-  margin:12px 0 0;
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 35px 30px;
+  box-shadow: 0 15px 45px rgba(0, 0, 0, 0.18);
 }
 
-/* ---------- WORKER SELECTION ---------- */
-
-.user-grid{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:12px;
+.login-logo {
+  text-align: center;
+  margin-bottom: 30px;
 }
 
-.user-card{
-  border:1px solid #e5ddd5;
-  background:#fffdf9;
-  border-radius:22px;
-  padding:15px;
-  text-align:left;
-  display:grid;
-  grid-template-columns:46px 1fr;
-  grid-template-rows:1fr 1fr;
-  column-gap:11px;
-  align-items:center;
+.login-logo h1 {
+  margin: 0 0 8px;
+  color: #0f4c81;
+  font-size: 28px;
 }
 
-.user-card span{
-  grid-row:1/3;
-  width:46px;
-  height:46px;
-  border-radius:50%;
-  background:#e9e1fb;
-  display:grid;
-  place-items:center;
-  font-weight:800;
+.login-logo p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 14px;
 }
 
-.user-card b{
-  font-size:17px;
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.user-card small{
-  color:#918894;
+.login-form label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #374151;
+  margin-top: 8px;
 }
 
-.user-card.selected{
-  outline:3px solid #37323d;
+.login-form input {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 9px;
+  padding: 13px;
+  outline: none;
+  background: #fff;
 }
 
-/* ---------- DASHBOARD HEADER ---------- */
-
-.topbar{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:14px;
-  margin-bottom:22px;
-  padding:14px 0;
+.login-form input:focus {
+  border-color: #0f4c81;
+  box-shadow: 0 0 0 3px rgba(15, 76, 129, 0.1);
 }
 
-.topbar h1{
-  margin:0;
-  font-size:26px;
-  letter-spacing:-.5px;
+.primary-btn {
+  margin-top: 15px;
+  border: none;
+  border-radius: 9px;
+  padding: 14px;
+  background: #0f4c81;
+  color: white;
+  font-weight: 700;
+  transition: 0.2s;
 }
 
-.ghost{
-  border:1px solid #ddd4cc;
-  background:#fff;
-  border-radius:22px;
-  padding:10px 16px;
-  font-weight:700;
-  cursor:pointer;
+.primary-btn:hover {
+  background: #0b3d68;
 }
 
-/* ---------- DASHBOARD STATS ---------- */
-
-.cards{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  border:1px solid #ddd4cc;
-  border-radius:20px;
-  overflow:hidden;
-  background:#fff;
+.login-message {
+  text-align: center;
+  min-height: 20px;
+  color: #c93636;
+  font-size: 13px;
+  margin: 5px 0 0;
 }
 
-.stat{
-  padding:20px;
-  border-right:1px solid #ddd4cc;
+
+/* =========================================================
+   APP HEADER
+========================================================= */
+
+.app-header {
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 16px 25px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 20;
 }
 
-.stat:last-child{
-  border:0;
+.header-left h1 {
+  margin: 0;
+  font-size: 21px;
+  color: #0f4c81;
 }
 
-.stat small{
-  letter-spacing:.1em;
-  color:#918894;
+.header-left p {
+  margin: 4px 0 0;
+  color: #6b7280;
+  font-size: 13px;
 }
 
-.stat strong{
-  display:block;
-  font-size:32px;
-  margin-top:6px;
+.logout-btn {
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #374151;
+  border-radius: 8px;
+  padding: 9px 15px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
-/* ---------- MAIN ACTIONS ---------- */
-
-.actions{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:12px;
-  margin:18px 0;
+.logout-btn:hover {
+  background: #f3f4f6;
 }
 
-.action{
-  min-height:64px;
-  border-radius:16px;
-  background:#fff;
-  border:1px solid #37323d;
-  font-weight:800;
-  cursor:pointer;
-  padding:12px;
+
+/* =========================================================
+   MAIN CONTAINER
+========================================================= */
+
+.app-main {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 25px 18px 50px;
 }
 
-.action:active,
-.primary:active,
-.ghost:active{
-  transform:scale(.98);
+
+/* =========================================================
+   DASHBOARD
+========================================================= */
+
+.dashboard {
+  width: 100%;
 }
 
-/* ---------- PANELS ---------- */
-
-.panel h2{
-  margin-top:0;
-  margin-bottom:16px;
+.dashboard-section {
+  margin-bottom: 30px;
 }
 
-/* ---------- INVENTORY ---------- */
-
-.inventory{
-  display:flex;
-  flex-direction:column;
-  gap:9px;
+.section-title {
+  font-size: 15px;
+  color: #6b7280;
+  margin: 0 0 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.item{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-  padding:13px 14px;
-  border:1px solid #ddd;
-  border-radius:13px;
-  background:#fff;
+
+/* =========================================================
+   DASHBOARD CARDS
+========================================================= */
+
+.dashboard-card {
+  width: 100%;
+  border: 1px solid #e1e5e9;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  text-align: left;
+  transition: 0.2s;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.03);
 }
 
-.item b{
-  display:block;
+.dashboard-card:hover {
+  border-color: #0f4c81;
+  box-shadow: 0 5px 15px rgba(15, 76, 129, 0.1);
+  transform: translateY(-1px);
 }
 
-.item small{
-  display:block;
-  color:#777;
-  margin-top:4px;
+.inventory-card {
+  margin-bottom: 12px;
 }
 
-.qty{
-  font-size:20px;
-  font-weight:bold;
-  white-space:nowrap;
+.dashboard-icon {
+  font-size: 27px;
+  width: 48px;
+  text-align: center;
+  flex-shrink: 0;
 }
 
-.badge{
-  margin-left:8px;
-  padding:5px 8px;
-  border-radius:7px;
-  background:#e8f5e9;
-  color:#28763a;
-  font-size:11px;
+.dashboard-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding-left: 10px;
 }
 
-.low{
-  background:#fff0df;
-  color:#b86600;
+.dashboard-content b {
+  font-size: 16px;
+  color: #1f2937;
 }
 
-/* ---------- MODALS ---------- */
-
-.modal{
-  position:fixed;
-  inset:0;
-  background:#0008;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:14px;
-  z-index:99;
+.dashboard-content small {
+  color: #6b7280;
+  margin-top: 4px;
+  font-size: 12px;
 }
 
-.modalbox{
-  background:#fff;
-  border-radius:20px;
-  padding:20px;
-  width:100%;
-  max-width:480px;
-  max-height:90vh;
-  overflow:auto;
+.dashboard-arrow {
+  color: #9ca3af;
+  font-size: 28px;
+  font-weight: 300;
 }
 
-.product{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  width:100%;
-  min-height:52px;
-  margin:7px 0;
-  padding:12px 14px;
-  background:#fff;
-  border:1px solid #ddd;
-  border-radius:12px;
-  text-align:left;
-  font-weight:600;
-  cursor:pointer;
+
+/* =========================================================
+   STOCK IN / OUT
+========================================================= */
+
+.two-column-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
 
-.row{
-  display:flex;
-  gap:10px;
-  margin-top:10px;
+.compact-card {
+  min-height: 100px;
+  padding: 16px;
 }
 
-.row>*{
-  flex:1;
+.compact-card .dashboard-icon {
+  width: 42px;
+  font-size: 24px;
 }
 
-.save,
-.cancel{
-  border-radius:12px;
-  padding:13px;
-  font-size:16px;
-  font-weight:800;
-  cursor:pointer;
+.compact-card .dashboard-content {
+  padding-left: 5px;
 }
 
-.save{
-  background:#37323d;
-  color:#fff;
-  border:0;
+.compact-card .dashboard-content b {
+  font-size: 15px;
 }
 
-.cancel{
-  background:#fff;
-  color:#37323d;
-  border:1px solid #ccc;
+
+/* =========================================================
+   ADMIN CONTROLS
+========================================================= */
+
+.admin-section {
+  margin-top: 35px;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 25px;
 }
 
-/* ---------- MOBILE ---------- */
+.section-heading {
+  margin-bottom: 15px;
+}
 
-@media(max-width:480px){
+.section-heading h2 {
+  margin: 0;
+  font-size: 20px;
+  color: #1f2937;
+}
 
-  .screen{
-    padding:20px 16px 36px;
+.section-heading p {
+  margin: 5px 0 0;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+
+/* =========================================================
+   PASTE STOCK
+========================================================= */
+
+.paste-stock-card {
+  width: 100%;
+  border: 1px solid #c9dced;
+  background: #eef6fc;
+  border-radius: 12px;
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  text-align: left;
+  margin-bottom: 15px;
+  transition: 0.2s;
+}
+
+.paste-stock-card:hover {
+  background: #e3f0fa;
+  border-color: #0f4c81;
+}
+
+.paste-stock-card .dashboard-content b {
+  color: #0f4c81;
+}
+
+
+/* =========================================================
+   ADMIN GRID
+========================================================= */
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.admin-control-card {
+  min-height: 135px;
+  border: 1px solid #e1e5e9;
+  border-radius: 12px;
+  background: white;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  transition: 0.2s;
+}
+
+.admin-control-card:hover {
+  border-color: #0f4c81;
+  box-shadow: 0 5px 15px rgba(15, 76, 129, 0.08);
+  transform: translateY(-1px);
+}
+
+.admin-icon {
+  font-size: 25px;
+  margin-bottom: 12px;
+}
+
+.admin-control-card b {
+  font-size: 15px;
+  color: #1f2937;
+}
+
+.admin-control-card small {
+  color: #6b7280;
+  font-size: 11px;
+  margin-top: 5px;
+}
+
+
+/* =========================================================
+   INVENTORY PANEL
+========================================================= */
+
+.inventory-panel {
+  width: 100%;
+}
+
+.inventory-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 25px;
+}
+
+.inventory-header h2 {
+  margin: 12px 0 5px;
+  font-size: 26px;
+  color: #1f2937;
+}
+
+.inventory-header p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.back-btn {
+  border: none;
+  background: transparent;
+  color: #0f4c81;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.back-btn:hover {
+  text-decoration: underline;
+}
+
+
+/* =========================================================
+   INVENTORY SECTIONS
+========================================================= */
+
+.inventory-section {
+  margin-bottom: 22px;
+}
+
+.inventory-label {
+  margin: 0 0 10px;
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+}
+
+
+/* =========================================================
+   STOCK TABS
+========================================================= */
+
+.stock-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.stock-tab {
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #4b5563;
+  border-radius: 20px;
+  padding: 9px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  transition: 0.2s;
+}
+
+.stock-tab:hover {
+  border-color: #0f4c81;
+}
+
+.stock-tab.active {
+  background: #0f4c81;
+  border-color: #0f4c81;
+  color: white;
+}
+
+
+/* =========================================================
+   CATEGORY TABS
+========================================================= */
+
+.category-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.category-tab {
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #4b5563;
+  border-radius: 18px;
+  padding: 7px 13px;
+  font-size: 12px;
+  transition: 0.2s;
+}
+
+.category-tab:hover {
+  border-color: #0f4c81;
+}
+
+.category-tab.active {
+  background: #e8f2f9;
+  color: #0f4c81;
+  border-color: #0f4c81;
+  font-weight: 700;
+}
+
+
+/* =========================================================
+   SEARCH
+========================================================= */
+
+.inventory-search {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  background: white;
+  border-radius: 10px;
+  padding: 13px 15px;
+  outline: none;
+  font-size: 14px;
+}
+
+.inventory-search:focus {
+  border-color: #0f4c81;
+  box-shadow: 0 0 0 3px rgba(15, 76, 129, 0.1);
+}
+
+
+/* =========================================================
+   INVENTORY LIST
+========================================================= */
+
+.inventory-list,
+.inventory {
+  width: 100%;
+}
+
+.item {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.025);
+}
+
+.item > div {
+  min-width: 0;
+  flex: 1;
+}
+
+.item b {
+  display: block;
+  color: #1f2937;
+  font-size: 14px;
+  margin-bottom: 5px;
+  word-break: break-word;
+}
+
+.item small {
+  display: block;
+  color: #6b7280;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.qty {
+  min-width: 85px;
+  text-align: right;
+  color: #1f2937;
+  font-size: 17px;
+  white-space: nowrap;
+}
+
+.qty small {
+  display: inline;
+  font-size: 10px;
+  margin-left: 3px;
+}
+
+
+/* =========================================================
+   STOCK BADGES
+========================================================= */
+
+.badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 3px 6px;
+  border-radius: 5px;
+  font-size: 9px;
+  vertical-align: middle;
+  background: #dcfce7;
+  color: #166534;
+  font-weight: 700;
+}
+
+.badge.low {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+
+/* =========================================================
+   SUMMARY PANEL
+========================================================= */
+
+.summary-panel {
+  margin-top: 30px;
+}
+
+.summary-panel h2 {
+  font-size: 20px;
+}
+
+
+/* =========================================================
+   MODALS
+========================================================= */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+}
+
+.modalbox {
+  width: 100%;
+  max-width: 600px;
+  max-height: 92vh;
+  overflow-y: auto;
+  background: white;
+  border-radius: 18px 18px 0 0;
+  padding: 25px 20px 35px;
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.15);
+}
+
+.modalbox h2 {
+  margin: 0 0 20px;
+  color: #1f2937;
+  font-size: 21px;
+}
+
+.modalbox p {
+  font-size: 14px;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.modalbox input,
+.modalbox select,
+.modalbox textarea {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 9px;
+  padding: 12px;
+  margin-bottom: 12px;
+  outline: none;
+  background: white;
+}
+
+.modalbox textarea {
+  resize: vertical;
+  min-height: 130px;
+}
+
+.modalbox input:focus,
+.modalbox select:focus,
+.modalbox textarea:focus {
+  border-color: #0f4c81;
+  box-shadow: 0 0 0 3px rgba(15, 76, 129, 0.08);
+}
+
+
+/* =========================================================
+   MODAL PRODUCT BUTTONS
+========================================================= */
+
+#productChoices {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-bottom: 20px;
+}
+
+.product {
+  width: 100%;
+  text-align: left;
+  border: 1px solid #e1e5e9;
+  background: white;
+  border-radius: 9px;
+  padding: 13px;
+}
+
+.product:hover {
+  border-color: #0f4c81;
+  background: #f7fbfe;
+}
+
+.product b {
+  display: block;
+  font-size: 14px;
+  color: #1f2937;
+}
+
+.product small {
+  display: block;
+  margin-top: 4px;
+  color: #6b7280;
+  font-size: 11px;
+}
+
+
+/* =========================================================
+   MODAL BUTTONS
+========================================================= */
+
+.save {
+  width: 100%;
+  border: none;
+  border-radius: 9px;
+  background: #0f4c81;
+  color: white;
+  padding: 13px;
+  font-weight: 700;
+  margin-top: 5px;
+}
+
+.save:hover {
+  background: #0b3d68;
+}
+
+.cancel {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 9px;
+  background: white;
+  color: #4b5563;
+  padding: 12px;
+  font-weight: 600;
+  margin-top: 10px;
+}
+
+.cancel:hover {
+  background: #f3f4f6;
+}
+
+
+/* =========================================================
+   MODAL INLINE EDIT BUTTONS
+========================================================= */
+
+.editProduct,
+.editTx {
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #0f4c81;
+  padding: 7px 10px;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.editProduct:hover,
+.editTx:hover {
+  background: #eef6fc;
+  border-color: #0f4c81;
+}
+
+
+/* =========================================================
+   TRANSACTION LIST
+========================================================= */
+
+.transaction-list {
+  margin-top: 10px;
+}
+
+.transaction-list .item {
+  align-items: center;
+}
+
+
+/* =========================================================
+   ERROR / EMPTY STATES
+========================================================= */
+
+.error-message {
+  color: #b91c1c;
+  padding: 15px;
+  background: #fef2f2;
+  border-radius: 8px;
+}
+
+
+/* =========================================================
+   SCROLLBAR
+========================================================= */
+
+.modalbox::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modalbox::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+
+
+/* =========================================================
+   TABLET / DESKTOP
+========================================================= */
+
+@media (min-width: 700px) {
+
+  .app-main {
+    padding-top: 35px;
   }
 
-  .brand{
-    margin:22px 0 18px;
-    gap:12px;
+  .dashboard-card {
+    padding: 22px;
   }
 
-  .brand-mark{
-    width:62px;
-    height:62px;
-    font-size:29px;
+  .admin-grid {
+    grid-template-columns: repeat(4, 1fr);
   }
 
-  .brand h1{
-    font-size:24px;
+  .admin-control-card {
+    min-height: 145px;
   }
 
-  .subtitle{
-    font-size:16px;
-    margin-bottom:26px;
+  .modal {
+    align-items: center;
+    padding: 20px;
   }
 
-  .loginbox,
-  .panel{
-    padding:17px;
-    border-radius:18px;
+  .modalbox {
+    border-radius: 16px;
+    max-height: 85vh;
+    padding: 28px;
   }
 
-  .label{
-    margin:17px 0 8px;
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 480px) {
+
+  .app-header {
+    padding: 14px 15px;
   }
 
-  #accessCode,
-  #pin{
-    height:58px;
-    font-size:18px;
-    letter-spacing:normal;
-    padding:0 18px;
+  .header-left h1 {
+    font-size: 17px;
   }
 
-  .primary{
-    height:58px;
-    margin-top:20px;
+  .header-left p {
+    font-size: 11px;
   }
 
-  .user-grid{
-    gap:10px;
+  .logout-btn {
+    padding: 7px 10px;
+    font-size: 11px;
   }
 
-  .user-card{
-    padding:12px;
-    border-radius:19px;
-    grid-template-columns:40px 1fr;
+  .app-main {
+    padding: 20px 12px 35px;
   }
 
-  .user-card span{
-    width:40px;
-    height:40px;
+  .two-column-actions {
+    gap: 8px;
   }
 
-  .user-card b{
-    font-size:16px;
+  .dashboard-card {
+    padding: 15px;
   }
 
-  .topbar{
-    padding-top:6px;
-    margin-bottom:16px;
+  .compact-card {
+    min-height: 85px;
+    padding: 12px 8px;
   }
 
-  .topbar h1{
-    font-size:23px;
+  .compact-card .dashboard-icon {
+    font-size: 20px;
+    width: 32px;
   }
 
-  .ghost{
-    padding:9px 13px;
+  .compact-card .dashboard-content {
+    padding-left: 3px;
   }
 
-  .actions{
-    gap:10px;
-    margin:14px 0;
+  .compact-card .dashboard-content b {
+    font-size: 13px;
   }
 
-  .action{
-    min-height:60px;
-    font-size:15px;
+  .compact-card .dashboard-content small {
+    font-size: 10px;
   }
 
-  .item{
-    padding:12px;
+  .dashboard-icon {
+    font-size: 23px;
+    width: 40px;
   }
 
-  .qty{
-    font-size:18px;
+  .dashboard-content b {
+    font-size: 14px;
   }
 
-  .modal{
-    padding:10px;
+  .admin-grid {
+    gap: 8px;
   }
 
-  .modalbox{
-    padding:17px;
-    border-radius:18px;
+  .admin-control-card {
+    min-height: 115px;
+    padding: 14px;
   }
+
+  .admin-icon {
+    font-size: 21px;
+    margin-bottom: 8px;
   }
+
+  .admin-control-card b {
+    font-size: 13px;
+  }
+
+  .admin-control-card small {
+    font-size: 10px;
+  }
+
+  .inventory-header h2 {
+    font-size: 23px;
+  }
+
+  .stock-tab {
+    padding: 8px 13px;
+    font-size: 12px;
+  }
+
+  .category-tab {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
+  .item {
+    padding: 12px;
+  }
+
+  .item b {
+    font-size: 13px;
+  }
+
+  .qty {
+    font-size: 15px;
+    min-width: 65px;
+  }
+
+  .modalbox {
+    padding: 22px 15px 30px;
+  }
+
+}
+
+
+/* =========================================================
+   PRINT
+========================================================= */
+
+@media print {
+
+  .app-header,
+  .back-btn,
+  button {
+    display: none !important;
+  }
+
+  body {
+    background: white;
+  }
+
+  .app-main {
+    max-width: none;
+  }
+
+}
