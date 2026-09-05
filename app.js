@@ -1,29 +1,4 @@
 /* =========================================================
-   JMP ENT STOCKS
-   FINAL APPLICATION SCRIPT
-
-   Base:
-   Original 1e14120 application structure
-
-   Includes:
-   - Original login system
-   - Worker inventory
-   - Admin inventory
-   - Stock IN
-   - Stock OUT
-   - Central refresh system
-   - Products
-   - Categories
-   - Workers
-   - Transactions
-   - Transaction correction
-   - Paste stock update
-   - Proper modal close behaviour
-   - Browser/mobile back handling
-========================================================= */
-
-
-/* =========================================================
    BASIC HELPERS
 ========================================================= */
 
