@@ -2408,32 +2408,3 @@ document.addEventListener(
 
   }
 );
-
-/* =========================
-   INVENTORY HOME BUTTON
-========================= */
-
-document.addEventListener(
-  "DOMContentLoaded",
-  ()=>{
-
-    const inventoryButton = $("inventory");
-
-    if(inventoryButton){
-
-      inventoryButton.onclick = ()=>{
-
-        $("adminInventoryPanel")
-          ?.classList.remove("hidden");
-
-        $("adminActions")
-          ?.classList.add("hidden");
-
-        renderAdminInventory();
-
-      };
-
-    }
-
-  }
-);
